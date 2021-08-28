@@ -28,6 +28,15 @@ public class GroupChat {
 
     private String description;
 
+    private String title;
+
+    private String imagePath;
+
+    @OneToOne
+    @JoinColumn(
+            name = "group_chat_creator",
+                referencedColumnName =  "id"
+    )
     private User creator;
 
     @OneToMany
@@ -40,7 +49,7 @@ public class GroupChat {
 
     @OneToMany
     @JoinTable(
-        name = "group_chat_usr",
+        name = "group_chat_user",
             joinColumns = @JoinColumn(name = "group_chat_id"),
             inverseJoinColumns = @JoinColumn(name = "usr_id")
     )

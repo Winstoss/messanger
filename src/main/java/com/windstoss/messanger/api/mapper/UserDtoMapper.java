@@ -14,7 +14,7 @@ public class UserDtoMapper {
                 .nickname(StringUtils.defaultIfEmpty(editingDataDto.getNickname(), user.getNickname()))
                 .avatarPath(StringUtils.defaultIfEmpty(editingDataDto.getAvatar(), user.getAvatarPath()))
                 .phoneNumber((StringUtils.defaultIfEmpty(editingDataDto.getPhoneNumber(), user.getPhoneNumber())))
-                .description(StringUtils.defaultIfEmpty(editingDataDto.getDescription(), user.getDescription()))
+                .bio(StringUtils.defaultIfEmpty(editingDataDto.getDescription(), user.getBio()))
                 .build();
 
     }

@@ -31,7 +31,7 @@ public class User {
 
     private String phoneNumber;
 
-    private String description;
+    private String bio;
 
     private String avatarPath;
 

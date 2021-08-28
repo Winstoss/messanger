@@ -12,7 +12,7 @@ import javax.persistence.*;
 @NoArgsConstructor
 @MappedSuperclass
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@Table(name = "private_chat")
+@Table(name = "private_message")
 public class PMMessage extends Message {
 
     @ManyToOne

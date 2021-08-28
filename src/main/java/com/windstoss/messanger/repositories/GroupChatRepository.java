@@ -10,6 +10,6 @@ import java.util.UUID;
 @Repository
 public interface GroupChatRepository extends JpaRepository<GroupChat, UUID> {
 
-    @Query(value = "SELECT EXISTS(*) FROM group_chat_admin WHERE group_chat_id = groupChatId AND user_id = userId")
+    @Query(value = "SELECT EXISTS (*) FROM group_chat_admin WHERE group_chat_id = groupChatId AND user_id = userId", nativeQuery=true)
     boolean isAdminInGroupChat(UUID groupChatId, UUID userId);
 }

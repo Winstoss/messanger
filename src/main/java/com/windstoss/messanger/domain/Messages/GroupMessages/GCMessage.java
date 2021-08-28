@@ -11,7 +11,7 @@ import javax.persistence.*;
 @NoArgsConstructor
 @MappedSuperclass
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
-@Table(name = "group_chat")
+@Table(name = "group_message")
 public class GCMessage extends Message {
     @ManyToOne
     @JoinColumn(name = "chat_id", referencedColumnName = "id")

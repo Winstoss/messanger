@@ -23,11 +23,11 @@ public class PrivateChat  {
     private UUID id;
 
     @OneToOne
-    @JoinColumn(name = "firstUser_id", referencedColumnName = "id")
+    @JoinColumn(name = "first_user_id", referencedColumnName = "id")
     private User firstUser;
 
     @OneToOne
-    @JoinColumn(name = "secondUser_id", referencedColumnName = "id")
+    @JoinColumn(name = "second_user_id", referencedColumnName = "id")
     private User secondUser;
 
 }
