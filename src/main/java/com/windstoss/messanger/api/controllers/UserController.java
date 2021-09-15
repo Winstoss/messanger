@@ -1,16 +1,13 @@
 package com.windstoss.messanger.api.controllers;
 
-import com.windstoss.messanger.api.dto.EditUserDataDto;
-import com.windstoss.messanger.domain.User;
+import com.windstoss.messanger.api.dto.User.CreateUserDto;
+import com.windstoss.messanger.api.dto.User.EditUserDataDto;
 import com.windstoss.messanger.services.UserService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Objects;
 
-
+@RequestMapping("/user")
 @RestController
 public class UserController {
 
@@ -21,15 +18,21 @@ public class UserController {
     }
 
     @PostMapping("/registration")
-    public void registrateUser(@RequestBody User user) {
+    public void registrateUser(@RequestBody CreateUserDto user) {
+
         userService.registerUser(user);
     }
 
-    @PostMapping("/edit")
-    public void editUser(@RequestHeader ("username") String login,
-            @RequestBody EditUserDataDto editingDataDto){
-
+    @PatchMapping("/edit")
+    public void editUser(@RequestHeader("username") String login,
+                         @RequestBody EditUserDataDto editingDataDto) {
 
         userService.editUser(login, editingDataDto);
+    }
+
+    @DeleteMapping("/delete")
+    public void deleteUser(@RequestHeader("credentials") String credentials) {
+
+        userService.deleteUser(credentials);
     }
 }

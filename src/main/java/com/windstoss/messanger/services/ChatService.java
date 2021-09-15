@@ -1,7 +1,10 @@
 package com.windstoss.messanger.services;
 
-import com.windstoss.messanger.api.dto.CreateGroupChatDto;
-import com.windstoss.messanger.api.dto.EditGroupChatDto;
+import com.windstoss.messanger.api.dto.GroupChat.CreateGroupChatDto;
+import com.windstoss.messanger.api.dto.GroupChat.DeleteGroupDto;
+import com.windstoss.messanger.api.dto.GroupChat.EditGroupChatDto;
+import com.windstoss.messanger.api.dto.PrivateChat.PrivateChatDto;
+import com.windstoss.messanger.api.mapper.CreatePrivateChatDtoMapper;
 import com.windstoss.messanger.api.mapper.EditDataDtoMapper;
 import com.windstoss.messanger.api.mapper.GroupChatDtoMapper;
 import com.windstoss.messanger.domain.Chats.GroupChat;
@@ -38,80 +41,163 @@ public class ChatService {
         this.userRepository = Objects.requireNonNull(userRepository);
     }
 
-    public void createPrivateChat(String firstUser, String secondUser) {
-        User user1 = userRepository.findByUsername(firstUser)
+    public PrivateChat getPrivateChat(String credentials, UUID chatId) {
+
+        User user = userRepository.findUserByUsername(credentials)
                 .orElseThrow(IllegalArgumentException::new);
-        User user2 = userRepository.findByUsername(secondUser)
+
+        return privateChatRepository.findPrivateChatById(chatId).orElseThrow(IllegalArgumentException::new);
+    }
+
+
+
+    public PrivateChat createPrivateChat(String firstUserData, PrivateChatDto secondUserData) {
+
+        String secondUser = CreatePrivateChatDtoMapper.dtoToUser(secondUserData);
+
+        User user1 = userRepository.findUserByUsername(firstUserData)
+                .orElseThrow(IllegalArgumentException::new);
+        User user2 = userRepository.findUserByUsername(secondUser)
                 .orElseThrow(IllegalArgumentException::new);
 
         privateChatRepository.findByUsersId(user1.getId(), user2.getId()).ifPresent(x -> {
             throw new IllegalArgumentException();
         });
 
-        privateChatRepository.save(PrivateChat.builder()
+        return privateChatRepository.save(PrivateChat.builder()
                 .firstUser(user1)
                 .secondUser(user2)
                 .build());
-    }
-
-    public void deletePrivateChat(String firstUser, String secondUser) {
-        User user1 = userRepository.findByUsername(firstUser)
-                .orElseThrow(IllegalArgumentException::new);
-        User user2 = userRepository.findByUsername(secondUser)
-                .orElseThrow(IllegalArgumentException::new);
-
-        privateChatRepository.findByUsersId(user1.getId(), user2.getId())
-                .orElseThrow(IllegalArgumentException::new);
-
-        privateChatRepository.delete(PrivateChat.builder()
-                .firstUser(user1)
-                .secondUser(user2)
-                .build());
-    }
-
-    public void createGroupChat(String creator, CreateGroupChatDto data) {
-        User user = userRepository.findByUsername(creator)
-                .orElseThrow(IllegalArgumentException::new);
-
-        data.setCreator(user.getId());
-
-        groupChatRepository.save(GroupChatDtoMapper.dtoToGroupChat(data));
 
     }
 
-    public void deleteGroupChat(UUID chatId) {
-        groupChatRepository.delete(groupChatRepository.findById(chatId)
+    public void deletePrivateChat(UUID chatId) {
+
+        PrivateChat chat = privateChatRepository.findPrivateChatById(chatId).orElseThrow(IllegalArgumentException::new);
+
+        privateChatRepository.delete(chat);
+    }
+
+    public GroupChat getGroupChat(String credentials, UUID chatId) {
+
+        final User user = userRepository.findUserByUsername(credentials)
+                .orElseThrow(IllegalArgumentException::new);
+
+        return groupChatRepository.findById(chatId).orElseThrow(IllegalArgumentException::new);
+    }
+
+    public GroupChat createGroupChat(String creatorUsername, CreateGroupChatDto data) {
+        final User creator = userRepository.findUserByUsername(creatorUsername)
+                .orElseThrow(IllegalArgumentException::new);
+
+        data.setCreator(creator.getId());
+        final Set<User> invitedUsers = userRepository.findUsersByUsernameIn(CollectionUtils
+                .emptyIfNull(data.getInvitedUsers()));
+
+        final GroupChat groupChat = groupChatRepository.save(GroupChatDtoMapper.dtoToGroupChat(data, creator));
+
+        groupChat.getUsers().addAll(invitedUsers);
+
+        return groupChatRepository.save(groupChat);
+
+    }
+
+    public void deleteGroupChat(DeleteGroupDto chatId) {
+        groupChatRepository.delete(groupChatRepository.findById(chatId.getId())
                 .orElseThrow(IllegalArgumentException::new));
     }
 
-    public void editGroupChat(String credentials, EditGroupChatDto data) {
-        User user = userRepository.findByUsername(credentials)
+    public void editGroupChat(String credentials, UUID chatId, EditGroupChatDto data) {
+        User user = userRepository.findUserByUsername(credentials)
                 .orElseThrow(IllegalArgumentException::new);
 
-        final GroupChat groupChat = groupChatRepository.findById(data.getId())
+        final GroupChat groupChat = groupChatRepository.findById(chatId)
                 .orElseThrow(IllegalArgumentException::new);
-
-        final Set<UUID> adminsIds = resolveIds(data.getAdmins());
-        final Set<UUID> usersIds = resolveIds(data.getUsers());
-
-        final Set<User> admins = userRepository.findByIdIn(adminsIds);
-        final Set<User> users = userRepository.findByIdIn(usersIds);
 
         if (isAdmin(user.getId(), groupChat.getId())) {
-            final GroupChat groupChatToSave = EditDataDtoMapper.editDataDtoToGroupChat(data, users, admins);
+            final GroupChat groupChatToSave = EditDataDtoMapper.editDataDtoToGroupChat(data);
             groupChatRepository.save(groupChat.merge(groupChatToSave));
-        } else if (!StringUtils.isEmpty(data.getDescription())) {
-            final GroupChat groupChatToSave = EditDataDtoMapper.editDataDtoToGroupChat(data, users, admins);
-            if (groupChatToSave.getUsers().isEmpty() || groupChatToSave.getAdmins().isEmpty()) {
-                groupChatRepository.save(groupChatToSave);
-            } else {
-                throw new IllegalArgumentException();
-            }
         } else {
             //  TODO : ADD NEW EXCEPTION
             throw new IllegalArgumentException();
-        } 
+        }
+    }
 
+    public User setAdminInGroupChat(String credentials, UUID chatId, UUID userId) throws IllegalAccessException {
+
+        User thirdPerson = userRepository.findUserByUsername(credentials).orElseThrow(IllegalArgumentException::new);
+        GroupChat chat = groupChatRepository.findById(chatId).orElseThrow(IllegalArgumentException::new);
+
+        if (!isAdmin(chatId, thirdPerson.getId())) {
+            throw new IllegalAccessException();
+        }
+
+        User user = userRepository.findById(userId).orElseThrow(IllegalArgumentException::new);
+
+        if (isAdmin(chatId, userId)) {
+            throw new IllegalArgumentException();
+        }
+
+        chat.getAdmins().add(user);
+
+        groupChatRepository.save(chat);
+
+        return user;
+    }
+
+    public User removeAdminInGroupChat(String credentials, UUID chatId, UUID userId) throws IllegalAccessException {
+
+        User thirdPerson = userRepository.findUserByUsername(credentials).orElseThrow(IllegalArgumentException::new);
+        GroupChat chat = groupChatRepository.findById(chatId).orElseThrow(IllegalArgumentException::new);
+
+        if (isAdmin(chatId, thirdPerson.getId())) {
+            throw new IllegalAccessException();
+        }
+
+        User user = userRepository.findById(userId).orElseThrow(IllegalArgumentException::new);
+
+        if (isAdmin(chatId, userId)) {
+            throw new IllegalArgumentException();
+        }
+
+        chat.getAdmins().remove(user);
+        groupChatRepository.save(chat);
+
+        return user;
+    }
+
+    public User addUserInGroupChat(String credentials, UUID chatId, UUID userId) {
+
+        User thirdPerson = userRepository.findUserByUsername(credentials).orElseThrow(IllegalArgumentException::new);
+        GroupChat chat = groupChatRepository.findById(chatId).orElseThrow(IllegalArgumentException::new);
+
+
+        User user = userRepository.findById(userId).orElseThrow(IllegalArgumentException::new);
+
+        if (isPresent(userId, chatId)) {
+            throw new IllegalArgumentException();
+        }
+
+        chat.getUsers().add(user);
+        groupChatRepository.save(chat);
+
+        return user;
+    }
+
+    public User deleteUserInGroupChat(String credentials, UUID chatId, UUID userId) {
+
+        GroupChat chat = groupChatRepository.findById(chatId).orElseThrow(IllegalArgumentException::new);
+
+        User user = userRepository.findById(userId).orElseThrow(IllegalArgumentException::new);
+
+        if (!isPresent(userId, chatId)) {
+            throw new IllegalArgumentException();
+        }
+
+        chat.getAdmins().remove(user);
+        groupChatRepository.save(chat);
+
+        return user;
     }
 
     private Set<UUID> resolveIds(Collection<UUID> ids) {
@@ -120,9 +206,18 @@ public class ChatService {
                 .collect(Collectors.toSet());
     }
 
-    private boolean isAdmin(UUID user, UUID ChatId) {
-        return groupChatRepository.isAdminInGroupChat(ChatId, user);
+    private boolean isAdmin(UUID user, UUID chatId) {
+        return groupChatRepository.isAdminInGroupChat(chatId, user);
     }
 
+    private boolean isPresent(UUID user, UUID chatId){
+        return  groupChatRepository.isPresentInChat(chatId, user);
+    }
+
+
+
+ /*   private boolean isPresentInChat(UUID chat_id, Set<UUID> user_id) {
+        return groupChatRepository.isPresentInChat(chat_id, user_id);
+    }*/
 
 }

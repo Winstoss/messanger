@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.ObjectUtils;
+import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.GenerationTime;
 
@@ -20,13 +22,13 @@ import java.util.UUID;
 @AllArgsConstructor
 @Table(name = "group_chat")
 @Entity
+@DynamicInsert
+@DynamicUpdate
 public class GroupChat {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
-
-    private String description;
 
     private String title;
 
@@ -34,7 +36,7 @@ public class GroupChat {
 
     @OneToOne
     @JoinColumn(
-            name = "group_chat_creator",
+            name = "creator_id",
                 referencedColumnName =  "id"
     )
     private User creator;
@@ -42,26 +44,26 @@ public class GroupChat {
     @OneToMany
     @JoinTable(
         name = "group_chat_admin",
-            joinColumns = @JoinColumn(name = "group_chat_id"),
-            inverseJoinColumns = @JoinColumn(name = "usr_id")
+            joinColumns = @JoinColumn(name = "chat_id"),
+            inverseJoinColumns = @JoinColumn(name = "admin_id")
     )
     private Set<User> admins;
 
     @OneToMany
     @JoinTable(
         name = "group_chat_user",
-            joinColumns = @JoinColumn(name = "group_chat_id"),
-            inverseJoinColumns = @JoinColumn(name = "usr_id")
+            joinColumns = @JoinColumn(name = "chat_id"),
+            inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     private Set<User> users;
 
     @Generated(GenerationTime.INSERT)
-    private Timestamp creationTime;
+    private Timestamp created_at;
 
     public GroupChat merge(GroupChat groupChat){
-        description = ObjectUtils.defaultIfNull(groupChat.getDescription(), description);
-        admins.addAll(groupChat.getAdmins());
-        users.addAll(groupChat.getUsers());
+        imagePath = ObjectUtils.defaultIfNull(groupChat.getImagePath(), title);
+        title = ObjectUtils.defaultIfNull(groupChat.getTitle(), title);
         return this;
     }
+
 }

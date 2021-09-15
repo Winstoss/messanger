@@ -1,7 +1,10 @@
 package com.windstoss.messanger.domain;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.GenerationTime;
 
@@ -10,6 +13,8 @@ import java.sql.Timestamp;
 import java.util.UUID;
 
 @Data
+@SuperBuilder(toBuilder = true)
+@AllArgsConstructor
 @NoArgsConstructor
 @MappedSuperclass
 public class Message {
@@ -18,13 +23,9 @@ public class Message {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @OneToOne
-    @JoinColumn(name = "user_id", referencedColumnName = "id")
-    private User author;
-
-    private boolean isViewed = false;
+    private boolean seen = false;
 
     @Generated(GenerationTime.INSERT)
-    private Timestamp creationTime;
+    private Timestamp createdAt;
 
 }

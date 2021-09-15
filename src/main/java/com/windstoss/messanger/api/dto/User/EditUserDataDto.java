@@ -1,4 +1,4 @@
-package com.windstoss.messanger.api.dto;
+package com.windstoss.messanger.api.dto.User;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class EditUserDataDto {
-    private String username;
     private String nickname;
-    private String phoneNumber;
+    private String username;
     private String password;
-    private String description;
-    private String avatar;
+    private String phone_number;
+    private String bio;
+    private String avatar_path;
 }

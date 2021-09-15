@@ -1,7 +1,9 @@
 package com.windstoss.messanger.services;
 
-import com.windstoss.messanger.api.dto.EditUserDataDto;
-import com.windstoss.messanger.api.mapper.UserDtoMapper;
+import com.windstoss.messanger.api.dto.User.CreateUserDto;
+import com.windstoss.messanger.api.dto.User.EditUserDataDto;
+import com.windstoss.messanger.api.mapper.CreateUserDtoMapper;
+import com.windstoss.messanger.api.mapper.EditUserDtoMapper;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.UserRepository;
 import org.springframework.stereotype.Service;
@@ -20,8 +22,11 @@ public class UserService {
         this.userRepository = Objects.requireNonNull(userRepository);
     }
 
-    public void registerUser(User user) {
-        userRepository.findByUsername(user.getUsername())
+    public void registerUser(CreateUserDto userData) {
+
+        User user = CreateUserDtoMapper.dtoToUser(userData);
+
+        userRepository.findUserByUsername(user.getUsername())
                 .ifPresent(usr -> {
                     throw new IllegalArgumentException();
                 });
@@ -32,9 +37,16 @@ public class UserService {
     public User editUser(String login,
                          EditUserDataDto editingDataDto) {
 
-        User user = userRepository.findByUsername(login)
-                .orElseThrow(() -> new IllegalArgumentException());
+        User user = userRepository.findUserByUsername(login)
+                .orElseThrow(IllegalArgumentException::new);
 
-        return userRepository.save(UserDtoMapper.dtoToUserMapper(user, editingDataDto));
+        return userRepository.save(EditUserDtoMapper.dtoToUserMapper(user, editingDataDto));
+    }
+
+    public void deleteUser(String login) {
+        User user = userRepository.findUserByUsername(login)
+                .orElseThrow(IllegalArgumentException::new);
+
+        userRepository.delete(user);
     }
 }

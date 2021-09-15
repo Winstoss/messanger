@@ -1,62 +1,84 @@
 package com.windstoss.messanger.api.controllers;
 
-import com.windstoss.messanger.api.dto.CreateGroupChatDto;
-import com.windstoss.messanger.api.dto.EditGroupChatDto;
+//import com.windstoss.messanger.api.dto.CreateGroupChatDto;
+//import com.windstoss.messanger.api.dto.EditGroupChatDto;
+import com.windstoss.messanger.api.dto.GroupChat.CreateGroupChatDto;
+import com.windstoss.messanger.api.dto.GroupChat.DeleteGroupDto;
+import com.windstoss.messanger.api.dto.GroupChat.EditGroupChatDto;
+import com.windstoss.messanger.api.dto.PrivateChat.PrivateChatDto;
+import com.windstoss.messanger.domain.Chats.GroupChat;
+import com.windstoss.messanger.domain.Chats.PrivateChat;
 import com.windstoss.messanger.services.ChatService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
 import java.util.UUID;
 
+@RequestMapping("/chat")
 @RestController
 public class ChatController {
 
-    private ChatService chatService;
+    private final ChatService chatService;
 
     public ChatController(ChatService chatService) {
-        this.chatService = chatService;
+        this.chatService = Objects.requireNonNull(chatService);
     }
 
-    @PostMapping("/createPrivateChat")
-    public void createPrivateChat(
-            @RequestHeader("credentials") String credentials,
-            @RequestBody String secondUser
+    @GetMapping("/private/{chatId}")
+    public PrivateChat getPrivateChat(@RequestHeader("credentials") String credentials,
+                                      @PathVariable("chatId") UUID chatId
     ) {
-        chatService.createPrivateChat(credentials, secondUser);
+        return chatService.getPrivateChat(credentials, chatId);
     }
 
-    @PostMapping("/deletePrivateChat")
-    public void deletePrivateChat(
+
+    @PostMapping("/private")
+    public PrivateChat createPrivateChat(
             @RequestHeader("credentials") String credentials,
-            @RequestBody String secondUser
+            @RequestBody PrivateChatDto secondUser
     ) {
-        chatService.deletePrivateChat(credentials, secondUser);
+        return chatService.createPrivateChat(credentials, secondUser);
     }
 
-    @PostMapping("/createGroupChat")
-    public void createGroupChat(
+
+    @DeleteMapping("/private/{chatId}")
+    public void deletePrivateChat(@PathVariable UUID chatId) {
+        chatService.deletePrivateChat(chatId);
+    }
+
+    @GetMapping("/group/{chatId}")
+    public GroupChat getGroupChat(@RequestHeader("credentials") String credentials,
+                                  @PathVariable("chatId") UUID chatId
+    ) {
+        return chatService.getGroupChat(credentials, chatId);
+    }
+
+
+    @PostMapping("/group")
+    public GroupChat createGroupChat(
             @RequestHeader("credentials") String credentials,
             @RequestBody CreateGroupChatDto parameters
     ) {
-        chatService.createGroupChat(credentials, parameters);
+        return chatService.createGroupChat(credentials, parameters);
     }
 
-    @PostMapping("/deleteGroupChat")
+
+    @DeleteMapping("/group")
     public void deleteGroupChat(
             @RequestHeader("credentials") String credentials,
-            @RequestBody UUID uuid
+            @RequestBody DeleteGroupDto id
     ) {
-        chatService.deleteGroupChat(uuid);
+        chatService.deleteGroupChat(id);
     }
 
-    @PostMapping("/editGroupChat")
+
+    @PatchMapping("/group/{chatId}")
     public void editGroupChat(
             @RequestHeader("credentials") String credentials,
+            @PathVariable("chatId") UUID chatId,
             @RequestBody EditGroupChatDto editData
     ){
-        
+        chatService.editGroupChat(credentials, chatId ,editData);
     }
 
 }

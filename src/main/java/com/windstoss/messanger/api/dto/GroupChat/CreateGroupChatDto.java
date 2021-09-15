@@ -1,22 +1,22 @@
-package com.windstoss.messanger.api.dto;
+package com.windstoss.messanger.api.dto.GroupChat;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Data
 @NoArgsConstructor
 public class CreateGroupChatDto {
 
-    private String description;
+    private String title;
 
     private UUID creator;
 
+    private String imagePath;
+
     private Set<UUID> admins;
 
-    private List<UUID> invitedUsers;
+    private Set<String> invitedUsers;
 
 }
