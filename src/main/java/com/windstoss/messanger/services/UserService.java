@@ -2,8 +2,9 @@ package com.windstoss.messanger.services;
 
 import com.windstoss.messanger.api.dto.User.CreateUserDto;
 import com.windstoss.messanger.api.dto.User.EditUserDataDto;
-import com.windstoss.messanger.api.mapper.CreateUserDtoMapper;
-import com.windstoss.messanger.api.mapper.EditUserDtoMapper;
+import com.windstoss.messanger.api.dto.User.UserDataDto;
+import com.windstoss.messanger.api.dto.User.UserRetrievalDto;
+import com.windstoss.messanger.api.mapper.UserMapper;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.UserRepository;
 import org.springframework.stereotype.Service;
@@ -16,15 +17,28 @@ import java.util.Objects;
 @Transactional
 public class UserService {
 
+    private final UserMapper userMapper;
+
     private final UserRepository userRepository;
 
-    public UserService(UserRepository userRepository) {
+    public UserService(UserRepository userRepository,
+                       UserMapper userMapper) {
         this.userRepository = Objects.requireNonNull(userRepository);
+        this.userMapper = Objects.requireNonNull(userMapper);
+    }
+
+    public UserRetrievalDto getUser(UserDataDto data){
+
+        userRepository.findUserByUsername(data.getCredentials())
+                .orElseThrow(IllegalArgumentException::new);
+
+        return userMapper.map(userRepository.findUserByUsername(data.getUsername())
+                .orElseThrow(IllegalArgumentException::new));
     }
 
     public void registerUser(CreateUserDto userData) {
 
-        User user = CreateUserDtoMapper.dtoToUser(userData);
+        User user = userMapper.map(userData);
 
         userRepository.findUserByUsername(user.getUsername())
                 .ifPresent(usr -> {
@@ -34,13 +48,16 @@ public class UserService {
         userRepository.save(user);
     }
 
-    public User editUser(String login,
-                         EditUserDataDto editingDataDto) {
+    public UserRetrievalDto editUser(String login,
+                                     EditUserDataDto editingDataDto) {
 
         User user = userRepository.findUserByUsername(login)
                 .orElseThrow(IllegalArgumentException::new);
 
-        return userRepository.save(EditUserDtoMapper.dtoToUserMapper(user, editingDataDto));
+        User edited = userMapper.map(editingDataDto);
+
+
+        return userMapper.map(userRepository.save(user.merge(edited)));
     }
 
     public void deleteUser(String login) {

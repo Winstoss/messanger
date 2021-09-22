@@ -1,7 +1,5 @@
 package com.windstoss.messanger.api.controllers;
 
-//import com.windstoss.messanger.api.dto.CreateGroupChatDto;
-//import com.windstoss.messanger.api.dto.EditGroupChatDto;
 import com.windstoss.messanger.api.dto.GroupChat.CreateGroupChatDto;
 import com.windstoss.messanger.api.dto.GroupChat.DeleteGroupDto;
 import com.windstoss.messanger.api.dto.GroupChat.EditGroupChatDto;
@@ -77,8 +75,8 @@ public class ChatController {
             @RequestHeader("credentials") String credentials,
             @PathVariable("chatId") UUID chatId,
             @RequestBody EditGroupChatDto editData
-    ){
-        chatService.editGroupChat(credentials, chatId ,editData);
+    ) {
+        chatService.editGroupChat(credentials, chatId, editData);
     }
 
 }

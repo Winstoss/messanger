@@ -1,9 +1,6 @@
 package com.windstoss.messanger.domain;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.apache.commons.lang3.ObjectUtils;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.GenerationTime;
@@ -13,6 +10,7 @@ import java.sql.Timestamp;
 import java.util.UUID;
 
 @Data
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(toBuilder = true)
@@ -21,6 +19,7 @@ import java.util.UUID;
 public class User {
 
     @Id
+    @EqualsAndHashCode.Include
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
@@ -30,11 +29,13 @@ public class User {
 
     private String password;
 
-    private String phone_number;
+    @Column(name = "phone_number")
+    private String phoneNumber;
 
     private String bio;
 
-    private String avatar_path;
+    @Column(name = "avatar_path")
+    private String avatarPath;
 
     @Generated(GenerationTime.INSERT)
     private Timestamp created_at;
@@ -43,9 +44,9 @@ public class User {
         nickname = ObjectUtils.defaultIfNull(user.getNickname(), nickname);
         username = ObjectUtils.defaultIfNull(user.getUsername(), username);
         password = ObjectUtils.defaultIfNull(user.getPassword(), password);
-        phone_number = ObjectUtils.defaultIfNull(user.getPhone_number(), phone_number);
+        phoneNumber = ObjectUtils.defaultIfNull(user.getPhoneNumber(), phoneNumber);
         bio = ObjectUtils.defaultIfNull(user.getBio(), bio);
-        avatar_path = ObjectUtils.defaultIfNull(user.getAvatar_path(), avatar_path);
+        avatarPath = ObjectUtils.defaultIfNull(user.getAvatarPath(), avatarPath);
         return this;
     }
 

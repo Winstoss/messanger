@@ -5,11 +5,13 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.Set;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface GroupChatRepository extends JpaRepository<GroupChat, UUID> {
+
+    //TODO: rework native to jpql
 
     @Query(value = "SELECT CASE WHEN EXISTS(" +
                             "SELECT * " +
@@ -28,4 +30,6 @@ public interface GroupChatRepository extends JpaRepository<GroupChat, UUID> {
             "THEN CAST(1 AS BIT)" +
             "ELSE CAST(0 AS BIT) END", nativeQuery=true)
     boolean isPresentInChat(UUID chatId, UUID userId);
+
+    Optional<GroupChat> findById(UUID uuid);
 }

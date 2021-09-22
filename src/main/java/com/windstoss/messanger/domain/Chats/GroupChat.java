@@ -32,6 +32,7 @@ public class GroupChat {
 
     private String title;
 
+    @Column(name = "image_path")
     private String imagePath;
 
     @OneToOne
@@ -58,7 +59,8 @@ public class GroupChat {
     private Set<User> users;
 
     @Generated(GenerationTime.INSERT)
-    private Timestamp created_at;
+    @Column(name = "created_at")
+    private Timestamp createdAt;
 
     public GroupChat merge(GroupChat groupChat){
         imagePath = ObjectUtils.defaultIfNull(groupChat.getImagePath(), title);

@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS private_text_message
 CREATE TABLE IF NOT EXISTS private_file_message
 (
     signature_id    UUID            NOT NULL,
-    content         VARCHAR(128)   NOT NULL,
+    file_path         VARCHAR(128)   NOT NULL,
 
     PRIMARY KEY (signature_id)
     CONSTRAINT signature_id_constraint FOREIGN KEY (signature_id) REFERENCES  private_message_signature (id) ON DELETE CASCADE
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS group_text_message
 CREATE TABLE IF NOT EXISTS group_file_message
 (
     signature_id    UUID            NOT NULL,
-    content         VARCHAR(128)    NOT NULL,
+    file_path         VARCHAR(128)    NOT NULL,
 
     PRIMARY KEY (signature_id)
     CONSTRAINT signature_id_constraint FOREIGN KEY (signature_id) REFERENCES  group_message_signature (id) ON DELETE CASCADE

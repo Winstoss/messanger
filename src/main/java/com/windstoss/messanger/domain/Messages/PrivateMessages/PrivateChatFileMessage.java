@@ -17,5 +17,7 @@ import javax.persistence.*;
 @PrimaryKeyJoinColumn(name = "signature_id")
 public class PrivateChatFileMessage extends PrivateChatMessageSignature {
 
+    @Column(name = "file_path")
     private String filePath;
+
 }

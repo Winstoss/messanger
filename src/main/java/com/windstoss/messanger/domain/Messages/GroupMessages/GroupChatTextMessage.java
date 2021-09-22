@@ -1,15 +1,21 @@
-//package com.windstoss.messanger.domain.Messages.GroupMessages;
-//
-//import com.windstoss.messanger.domain.Message;
-//import lombok.Data;
-//import lombok.NoArgsConstructor;
-//
-//import javax.persistence.Entity;
-//
-//@Data
-//@NoArgsConstructor
+package com.windstoss.messanger.domain.Messages.GroupMessages;
 
-//@Entity
-//public class GroupChatTextMessage extends GCMessage {
-//    private String text;
-//}
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+
+import javax.persistence.*;
+
+@Data
+@NoArgsConstructor
+@SuperBuilder(toBuilder = true)
+@AllArgsConstructor
+@Inheritance(strategy = InheritanceType.JOINED)
+@Entity
+@Table(name = "group_text_message")
+@PrimaryKeyJoinColumn(name = "signature_id")
+public class GroupChatTextMessage extends GroupChatMessageSignature {
+
+    private String content;
+}

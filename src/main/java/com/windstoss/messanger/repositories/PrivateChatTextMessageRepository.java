@@ -11,6 +11,6 @@ import java.util.UUID;
 @Repository
 public interface PrivateChatTextMessageRepository extends JpaRepository<PrivateChatTextMessage, UUID> {
 
-    @Query(value =  "SELECT p FROM PrivateChatTextMessage p WHERE p.chat.id = :chatId")
+    @Query(value = "SELECT p FROM PrivateChatTextMessage p WHERE p.chat.id = :chatId")
     List<PrivateChatTextMessage> findMessagesInChat(UUID chatId);
 }

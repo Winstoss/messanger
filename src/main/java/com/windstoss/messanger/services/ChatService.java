@@ -13,7 +13,6 @@ import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.GroupChatRepository;
 import com.windstoss.messanger.repositories.PrivateChatRepository;
 import com.windstoss.messanger.repositories.UserRepository;
-import com.windstoss.messanger.utils.StringUtils;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,7 +49,6 @@ public class ChatService {
     }
 
 
-
     public PrivateChat createPrivateChat(String firstUserData, PrivateChatDto secondUserData) {
 
         String secondUser = CreatePrivateChatDtoMapper.dtoToUser(secondUserData);
@@ -82,6 +80,8 @@ public class ChatService {
 
         final User user = userRepository.findUserByUsername(credentials)
                 .orElseThrow(IllegalArgumentException::new);
+
+
 
         return groupChatRepository.findById(chatId).orElseThrow(IllegalArgumentException::new);
     }
@@ -210,8 +210,11 @@ public class ChatService {
         return groupChatRepository.isAdminInGroupChat(chatId, user);
     }
 
-    private boolean isPresent(UUID user, UUID chatId){
-        return  groupChatRepository.isPresentInChat(chatId, user);
+    private boolean isPresent(UUID user, UUID chatId) {
+        if(!groupChatRepository.isPresentInChat(chatId, user)){
+            throw new IllegalArgumentException();
+        };
+        return true;
     }
 
 
