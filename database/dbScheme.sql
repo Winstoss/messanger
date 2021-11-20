@@ -59,18 +59,28 @@ CREATE TABLE IF NOT EXISTS private_text_message
     signature_id    UUID            NOT NULL,
     content         VARCHAR(2048)   NOT NULL,
 
-    PRIMARY KEY (signature_id)
+    PRIMARY KEY (signature_id),
     CONSTRAINT signature_id_constraint FOREIGN KEY (signature_id) REFERENCES  private_message_signature (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS private_file_message
 (
-    signature_id    UUID            NOT NULL,
+    signature_id      UUID           NOT NULL,
     file_path         VARCHAR(128)   NOT NULL,
 
-    PRIMARY KEY (signature_id)
+    PRIMARY KEY (signature_id),
     CONSTRAINT signature_id_constraint FOREIGN KEY (signature_id) REFERENCES  private_message_signature (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS private_described_file_message
+(
+    signature_id      UUID          NOT NULL,
+    description       VARCHAR(2048) NOT NULL,
+
+    PRIMARY KEY (signature_id),
+    CONSTRAINT signature_id_constraint FOREIGN KEY (signature_id) REFERENCES  private_file_message (signature_id) ON DELETE CASCADE
+);
+
 
 CREATE TABLE IF NOT EXISTS group_message_signature
 (
@@ -90,17 +100,26 @@ CREATE TABLE IF NOT EXISTS group_text_message
     signature_id    UUID            NOT NULL,
     content         VARCHAR(2048)   NOT NULL,
 
-    PRIMARY KEY (signature_id)
+    PRIMARY KEY (signature_id),
     CONSTRAINT signature_id_constraint FOREIGN KEY (signature_id) REFERENCES  group_message_signature (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS group_file_message
 (
-    signature_id    UUID            NOT NULL,
-    file_path         VARCHAR(128)    NOT NULL,
+    signature_id      UUID          NOT NULL,
+    file_path         VARCHAR(128)  NOT NULL,
 
-    PRIMARY KEY (signature_id)
+    PRIMARY KEY (signature_id),
     CONSTRAINT signature_id_constraint FOREIGN KEY (signature_id) REFERENCES  group_message_signature (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS group_described_file_message
+(
+    signature_id      UUID          NOT NULL,
+    description       VARCHAR(2048) NOT NULL,
+
+    PRIMARY KEY (signature_id),
+    CONSTRAINT signature_id_constraint FOREIGN KEY (signature_id) REFERENCES  group_file_message (signature_id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS group_chat_admin

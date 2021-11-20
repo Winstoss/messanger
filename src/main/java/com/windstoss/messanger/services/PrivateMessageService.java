@@ -2,16 +2,20 @@ package com.windstoss.messanger.services;
 
 
 import com.windstoss.messanger.api.dto.Message.EditTextMessageDto;
+import com.windstoss.messanger.api.dto.Message.SendDescribedFileMessageDto;
 import com.windstoss.messanger.api.dto.Message.SendMessageDto;
 import com.windstoss.messanger.api.dto.Message.SendTextMessageDto;
+import com.windstoss.messanger.api.exception.exceptions.*;
 import com.windstoss.messanger.api.mapper.MessageMapper;
 import com.windstoss.messanger.api.mapper.TextMessageDtoMapper;
 import com.windstoss.messanger.domain.Chats.PrivateChat;
+import com.windstoss.messanger.domain.Messages.PrivateMessages.PrivateChatDescribedFileMessage;
 import com.windstoss.messanger.domain.Messages.PrivateMessages.PrivateChatTextMessage;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.*;
 import com.windstoss.messanger.utils.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.web.WebProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,6 +35,8 @@ public class PrivateMessageService {
 
     private String uploadPath;
 
+    private final PrivateChatDescribedFileMessageRepository privateChatDescribedFileMessageRepository;
+
     private final UserRepository userRepository;
 
     private final PrivateChatRepository privateChatRepository;
@@ -44,8 +50,8 @@ public class PrivateMessageService {
     private final MessageMapper messageMapper;
 
     public PrivateMessageService(
-
             @Value("${upload.path}") String uploadPath,
+            PrivateChatDescribedFileMessageRepository privateChatDescribedFileMessageRepository,
             PrivateChatMessageSignatureRepository privateChatMessageSignatureRepository,
             PrivateChatTextMessageRepository privateChatTextMessageRepository,
             PrivateChatFileMessageRepository privateChatFileMessageRepository,
@@ -57,6 +63,7 @@ public class PrivateMessageService {
         this.privateChatMessageSignatureRepository = Objects.requireNonNull(privateChatMessageSignatureRepository);
         this.privateChatTextMessageRepository = Objects.requireNonNull(privateChatTextMessageRepository);
         this.privateChatFileMessageRepository = Objects.requireNonNull(privateChatFileMessageRepository);
+        this.privateChatDescribedFileMessageRepository = Objects.requireNonNull(privateChatDescribedFileMessageRepository);
         this.privateChatRepository = Objects.requireNonNull(privateChatRepository);
         this.userRepository = Objects.requireNonNull(userRepository);
         this.messageMapper = Objects.requireNonNull(messageMapper);
@@ -67,12 +74,7 @@ public class PrivateMessageService {
 
         final User sender = exists(author);
 
-        final PrivateChat chat = privateChatRepository.findPrivateChatById(chatId)
-                .orElseThrow(IllegalArgumentException::new);
-
-        if (!chat.getFirstUser().equals(sender) && !chat.getSecondUser().equals(sender)) {
-            throw new IllegalArgumentException();
-        }
+        final PrivateChat chat = requestedChatExists(sender.getId(), chatId);
 
         return privateChatTextMessageRepository.save(TextMessageDtoMapper.map(sender, chat, data));
     }
@@ -80,13 +82,7 @@ public class PrivateMessageService {
     public List<PrivateChatTextMessage> getAllTextMessages(String user, UUID chatId) {
 
         final User sender = exists(user);
-
-        final PrivateChat chat = privateChatRepository.findPrivateChatById(chatId)
-                .orElseThrow(IllegalArgumentException::new);
-
-        if (!chat.getFirstUser().equals(sender) && !chat.getSecondUser().equals(sender)) {
-            throw new IllegalArgumentException();
-        }
+        requestedChatExists(sender.getId(), chatId);
 
         return privateChatTextMessageRepository.findMessagesInChat(chatId);
     }
@@ -97,23 +93,18 @@ public class PrivateMessageService {
                                                          UUID messageId,
                                                          EditTextMessageDto data) {
         final User author = exists(credentials);
-        final PrivateChat chat = privateChatRepository.findPrivateChatById(chatId)
-                .orElseThrow(IllegalArgumentException::new);
+        requestedChatExists(author.getId(), chatId);
+
         final PrivateChatTextMessage message = privateChatTextMessageRepository.findById(messageId)
-                .orElseThrow(IllegalArgumentException::new);
+                .orElseThrow(MessageNotFoundException::new);
 
         if (StringUtils.isEmpty(data.getText())) {
-            throw new IllegalArgumentException();
+            throw new ContentIsEmptyException();
         }
 
         if (!author.equals(message.getAuthor())) {
-            throw new IllegalArgumentException();
+            throw new MessageAuthorityException();
         }
-
-        if (!chat.getFirstUser().equals(author) && !chat.getSecondUser().equals(author)) {
-            throw new IllegalArgumentException();
-        }
-
 
         return privateChatTextMessageRepository.save(message);
     }
@@ -121,37 +112,37 @@ public class PrivateMessageService {
 
     public void deletePrivateChatTextMessage(String credentials, UUID chatId, UUID messageId) {
         final User user = exists(credentials);
-        final PrivateChat chat = privateChatRepository.findPrivateChatById(chatId).orElseThrow(IllegalArgumentException::new);
+        final PrivateChat chat = requestedChatExists(user.getId(), chatId);
         final PrivateChatTextMessage message = privateChatTextMessageRepository.findById(messageId)
-                .orElseThrow(IllegalArgumentException::new);
+                .orElseThrow(MessageNotFoundException::new);
 
         if (!user.equals(message.getAuthor())) {
-            throw new IllegalArgumentException();
-        }
-
-        if (!chat.getFirstUser().equals(user) && !chat.getSecondUser().equals(user)) {
-            throw new IllegalArgumentException();
+            throw new MessageAuthorityException();
         }
 
         privateChatTextMessageRepository.delete(message);
     }
 
-    public List<String> sendFileMessage(String credentials, UUID chatId, SendMessageDto data) throws IOException {
+    public List<String> sendMessageWithFile(SendMessageDto data) throws IOException {
 
-        final User sender = exists(credentials);
+        //TODO: to get rid of if-statement
+        final User sender = exists(data.getAuthor());
+        final PrivateChat chat = requestedChatExists(sender.getId(), data.getChatId());
+        List<String> list = new ArrayList<String>();
 
-        final PrivateChat chat = privateChatRepository.findPrivateChatById(chatId)
-                .orElseThrow(IllegalArgumentException::new);
-
-        if (!chat.getFirstUser().equals(sender) && !chat.getSecondUser().equals(sender)) {
-            //TODO: add new exception handler / exceptions
-            throw new IllegalArgumentException();
+        if(StringUtils.isEmpty(data.getText())){
+            return sendFileMessage(data, list, sender, chat);
+        } else {
+            return sendDescribedFileMessage(data, list, sender, chat);
         }
 
-        //TODO: refactor this
-        final MultipartFile file = data.getFile();
+    }
 
-        List<String> list = new ArrayList<String>();
+    private List<String> sendFileMessage(SendMessageDto data,
+                                         List<String> list, User sender,
+                                         PrivateChat chat) throws IOException{
+
+        final MultipartFile file = data.getFile();
 
         if (file != null) {
             File uploadDir = new File(uploadPath);
@@ -167,17 +158,50 @@ public class PrivateMessageService {
             file.transferTo(new File(filePath));
 
 
-            list.add(privateChatFileMessageRepository.save(TextMessageDtoMapper.mapF(sender, chat, filePath)).getFilePath());
+            list.add(privateChatFileMessageRepository
+                    .save(TextMessageDtoMapper.mapF(sender, chat, filePath))
+                    .getFilePath());
+
         }
 
-        list.add(privateChatTextMessageRepository.save(TextMessageDtoMapper.map(sender, chat, data)).getContent());
+        return list;
+    }
+
+    private List<String> sendDescribedFileMessage(SendMessageDto data,
+                                                  List<String> list,
+                                                  User sender,
+                                                  PrivateChat chat) throws IOException{
+        final MultipartFile file = data.getFile();
+
+        if (file != null) {
+            File uploadDir = new File(uploadPath);
+
+            if (!uploadDir.exists()) {
+                uploadDir.mkdir();
+            }
+
+            String fileId = UUID.randomUUID().toString();
+            String fileName = fileId + "." + file.getOriginalFilename();
+            String filePath = uploadPath + "\\" + fileName;
+
+            file.transferTo(new File(filePath));
+
+            list.add(data.getText());
+            list.add(privateChatDescribedFileMessageRepository
+                    .save(TextMessageDtoMapper.mapDF(sender, chat, filePath, data.getText()))
+                    .getFilePath());
+        }
 
         return list;
     }
 
     private User exists(String username){
         return userRepository.findUserByUsername(username)
-                .orElseThrow(IllegalArgumentException::new);
+                .orElseThrow(UserNotFoundException::new);
+    }
+
+    private PrivateChat requestedChatExists(UUID userId, UUID chatId){
+        return privateChatRepository.findChatById(chatId, userId).orElseThrow(ChatNotFoundException::new);
     }
 
 }

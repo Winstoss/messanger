@@ -6,7 +6,8 @@ import com.windstoss.messanger.api.dto.GroupChat.EditGroupChatDto;
 import com.windstoss.messanger.api.dto.PrivateChat.PrivateChatDto;
 import com.windstoss.messanger.domain.Chats.GroupChat;
 import com.windstoss.messanger.domain.Chats.PrivateChat;
-import com.windstoss.messanger.services.ChatService;
+import com.windstoss.messanger.services.GroupChatService;
+import com.windstoss.messanger.services.PrivateChatService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Objects;
@@ -16,17 +17,21 @@ import java.util.UUID;
 @RestController
 public class ChatController {
 
-    private final ChatService chatService;
+    private final GroupChatService groupChatService;
 
-    public ChatController(ChatService chatService) {
-        this.chatService = Objects.requireNonNull(chatService);
+    private final PrivateChatService privateChatService;
+
+    public ChatController(GroupChatService groupChatService,
+                          PrivateChatService privateChatService) {
+        this.privateChatService = Objects.requireNonNull(privateChatService);
+        this.groupChatService = Objects.requireNonNull(groupChatService);
     }
 
     @GetMapping("/private/{chatId}")
     public PrivateChat getPrivateChat(@RequestHeader("credentials") String credentials,
                                       @PathVariable("chatId") UUID chatId
     ) {
-        return chatService.getPrivateChat(credentials, chatId);
+        return privateChatService.getPrivateChat(credentials, chatId);
     }
 
 
@@ -35,20 +40,22 @@ public class ChatController {
             @RequestHeader("credentials") String credentials,
             @RequestBody PrivateChatDto secondUser
     ) {
-        return chatService.createPrivateChat(credentials, secondUser);
+        return privateChatService.createPrivateChat(credentials, secondUser);
     }
 
 
     @DeleteMapping("/private/{chatId}")
-    public void deletePrivateChat(@PathVariable UUID chatId) {
-        chatService.deletePrivateChat(chatId);
+    public void deletePrivateChat(
+            @RequestHeader("credentials") String credentials,
+            @PathVariable UUID chatId) {
+        privateChatService.deletePrivateChat(credentials, chatId);
     }
 
     @GetMapping("/group/{chatId}")
     public GroupChat getGroupChat(@RequestHeader("credentials") String credentials,
                                   @PathVariable("chatId") UUID chatId
     ) {
-        return chatService.getGroupChat(credentials, chatId);
+        return groupChatService.getGroupChat(credentials, chatId);
     }
 
 
@@ -57,7 +64,7 @@ public class ChatController {
             @RequestHeader("credentials") String credentials,
             @RequestBody CreateGroupChatDto parameters
     ) {
-        return chatService.createGroupChat(credentials, parameters);
+        return groupChatService.createGroupChat(credentials, parameters);
     }
 
 
@@ -66,7 +73,7 @@ public class ChatController {
             @RequestHeader("credentials") String credentials,
             @RequestBody DeleteGroupDto id
     ) {
-        chatService.deleteGroupChat(id);
+        groupChatService.deleteGroupChat(id);
     }
 
 
@@ -76,7 +83,7 @@ public class ChatController {
             @PathVariable("chatId") UUID chatId,
             @RequestBody EditGroupChatDto editData
     ) {
-        chatService.editGroupChat(credentials, chatId, editData);
+        groupChatService.editGroupChat(credentials, chatId, editData);
     }
 
 }

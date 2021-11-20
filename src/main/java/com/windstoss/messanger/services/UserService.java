@@ -4,6 +4,8 @@ import com.windstoss.messanger.api.dto.User.CreateUserDto;
 import com.windstoss.messanger.api.dto.User.EditUserDataDto;
 import com.windstoss.messanger.api.dto.User.UserDataDto;
 import com.windstoss.messanger.api.dto.User.UserRetrievalDto;
+import com.windstoss.messanger.api.exception.exceptions.UserCreationException;
+import com.windstoss.messanger.api.exception.exceptions.UserNotFoundException;
 import com.windstoss.messanger.api.mapper.UserMapper;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.UserRepository;
@@ -29,11 +31,9 @@ public class UserService {
 
     public UserRetrievalDto getUser(UserDataDto data){
 
-        userRepository.findUserByUsername(data.getCredentials())
-                .orElseThrow(IllegalArgumentException::new);
 
         return userMapper.map(userRepository.findUserByUsername(data.getUsername())
-                .orElseThrow(IllegalArgumentException::new));
+                .orElseThrow(UserNotFoundException::new));
     }
 
     public void registerUser(CreateUserDto userData) {
@@ -42,7 +42,7 @@ public class UserService {
 
         userRepository.findUserByUsername(user.getUsername())
                 .ifPresent(usr -> {
-                    throw new IllegalArgumentException();
+                    throw new UserCreationException();
                 });
 
         userRepository.save(user);
@@ -52,7 +52,7 @@ public class UserService {
                                      EditUserDataDto editingDataDto) {
 
         User user = userRepository.findUserByUsername(login)
-                .orElseThrow(IllegalArgumentException::new);
+                .orElseThrow(UserNotFoundException::new);
 
         User edited = userMapper.map(editingDataDto);
 
@@ -62,7 +62,7 @@ public class UserService {
 
     public void deleteUser(String login) {
         User user = userRepository.findUserByUsername(login)
-                .orElseThrow(IllegalArgumentException::new);
+                .orElseThrow(UserNotFoundException::new);
 
         userRepository.delete(user);
     }

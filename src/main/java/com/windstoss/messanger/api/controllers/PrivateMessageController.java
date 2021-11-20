@@ -3,7 +3,7 @@ package com.windstoss.messanger.api.controllers;
 import com.windstoss.messanger.api.dto.Message.EditTextMessageDto;
 import com.windstoss.messanger.api.dto.Message.SendMessageDto;
 import com.windstoss.messanger.api.dto.Message.SendTextMessageDto;
-import com.windstoss.messanger.api.mapper.MessageMapper;
+import com.windstoss.messanger.api.mapper.ControllerMessageMapper;
 import com.windstoss.messanger.domain.Messages.PrivateMessages.PrivateChatTextMessage;
 import com.windstoss.messanger.services.PrivateMessageService;
 import org.springframework.http.MediaType;
@@ -19,14 +19,14 @@ import java.util.UUID;
 @RestController
 public class PrivateMessageController {
 
-    private final MessageMapper messageMapper;
+    private final ControllerMessageMapper controllerMessageMapper;
 
     private final PrivateMessageService privateMessageService;
 
     public PrivateMessageController(PrivateMessageService privateMessageService,
-                                    MessageMapper messageMapper) {
+                                    ControllerMessageMapper controllerMessageMapper) {
         this.privateMessageService = privateMessageService;
-        this.messageMapper = messageMapper;
+        this.controllerMessageMapper = controllerMessageMapper;
     }
 
     @PostMapping("/private/{chatId}/messages/")
@@ -65,9 +65,9 @@ public class PrivateMessageController {
     public List<String> sendFileMessage(@RequestHeader("credentials") String credentials,
                                         @PathVariable UUID chatId,
                                         @RequestParam MultipartFile file,
-                                        @RequestParam String text) throws IOException {
-        final SendMessageDto data = messageMapper.map(text, file, credentials, chatId);
-        return privateMessageService.sendFileMessage(credentials, chatId, data);
+                                        @RequestParam(required = false) String text ) throws IOException {
+        final SendMessageDto data = controllerMessageMapper.map(text, file, credentials, chatId);
+        return privateMessageService.sendMessageWithFile(data);
     }
 
 

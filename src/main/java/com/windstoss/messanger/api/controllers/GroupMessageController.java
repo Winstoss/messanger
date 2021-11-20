@@ -3,12 +3,17 @@ package com.windstoss.messanger.api.controllers;
 
 import com.windstoss.messanger.api.dto.Message.EditTextMessageDto;
 import com.windstoss.messanger.api.dto.Message.GroupChatTextMessageRetrievalDto;
+import com.windstoss.messanger.api.dto.Message.SendMessageDto;
 import com.windstoss.messanger.api.dto.Message.SendTextMessageDto;
+import com.windstoss.messanger.api.mapper.ControllerMessageMapper;
 import com.windstoss.messanger.domain.Messages.GroupMessages.GroupChatTextMessage;
 import com.windstoss.messanger.services.GroupMessageService;
+import org.springframework.http.MediaType;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -19,8 +24,12 @@ public class GroupMessageController {
 
     private final GroupMessageService groupMessageService;
 
-    public GroupMessageController(GroupMessageService groupMessageService) {
+    private final ControllerMessageMapper controllerMessageMapper;
+
+    public GroupMessageController(GroupMessageService groupMessageService,
+                                  ControllerMessageMapper controllerMessageMapper) {
         this.groupMessageService = Objects.requireNonNull(groupMessageService);
+        this.controllerMessageMapper = Objects.requireNonNull(controllerMessageMapper);
     }
 
     @PostMapping("/{chatId}/messages/")
@@ -29,6 +38,15 @@ public class GroupMessageController {
                                                          @RequestBody SendTextMessageDto sendMessageDto
     ) {
         return groupMessageService.sendGroupTextMessage(credentials, chatId, sendMessageDto);
+    }
+
+    @PostMapping(value = "/{chatId}/messages-new/", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public List<String> sendFileMessage(@RequestHeader("credentials") String credentials,
+                                        @PathVariable UUID chatId,
+                                        @RequestParam MultipartFile file,
+                                        @RequestParam(required = false) String text ) throws IOException {
+        final SendMessageDto data = controllerMessageMapper.map(text, file, credentials, chatId);
+        return groupMessageService.sendMessageWithFile(data);
     }
 
     @Transactional
@@ -56,5 +74,6 @@ public class GroupMessageController {
     ) {
         groupMessageService.deleteGroupChatTextMessage(credentials, chatId, messageId);
     }
+
 
 }

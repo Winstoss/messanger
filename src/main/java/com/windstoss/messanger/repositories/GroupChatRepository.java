@@ -1,6 +1,7 @@
 package com.windstoss.messanger.repositories;
 
 import com.windstoss.messanger.domain.Chats.GroupChat;
+import com.windstoss.messanger.domain.Chats.PrivateChat;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;

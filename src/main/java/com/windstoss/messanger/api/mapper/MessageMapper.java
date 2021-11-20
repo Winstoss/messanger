@@ -1,5 +1,6 @@
 package com.windstoss.messanger.api.mapper;
 
+import com.windstoss.messanger.api.dto.Message.MessageContentDto;
 import com.windstoss.messanger.api.dto.Message.MessageRetrievalDto;
 import com.windstoss.messanger.api.dto.Message.SendMessageDto;
 import com.windstoss.messanger.domain.Chats.GroupChat;
@@ -21,13 +22,6 @@ import java.util.UUID;
 
 @Mapper(componentModel = "spring")
 public interface MessageMapper {
-
-    @BeanMapping(ignoreByDefault = true)
-    @Mapping(source = "author", target = "author")
-    @Mapping(source = "chat", target = "chatId")
-    @Mapping(source = "message", target = "text")
-    @Mapping(source = "file", target = "file")
-    SendMessageDto map(String message, MultipartFile file, String author, UUID chat);
 
     @BeanMapping(ignoreByDefault = true)
     @Mapping(source = "signature.id", target = "id")
@@ -74,4 +68,14 @@ public interface MessageMapper {
     MessageRetrievalDto map(PrivateChatMessageSignature signature,
                             PrivateChatTextMessage textMessage,
                             PrivateChatFileMessage fileMessage);
+
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(source = "dto.text", target = "text")
+    @Mapping(source = "dto.file", target = "file")
+    MessageContentDto map(SendMessageDto dto);
+
+    @BeanMapping(ignoreByDefault = true)
+    @Mapping(source = "author", target = "author")
+    @Mapping(source = "privateChat", target = "chat")
+    PrivateChatMessageSignature map(User author, PrivateChat privateChat);
 }
