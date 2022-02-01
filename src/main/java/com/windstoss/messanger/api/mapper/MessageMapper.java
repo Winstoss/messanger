@@ -37,12 +37,12 @@ public interface MessageMapper {
     @Mapping(target = "filePath", expression = "java(message.getAbsolutePath())")
     PrivateChatFileMessage map(File message, User author, PrivateChat chat, PrivateChatMessageSignature signature);
 
-    @BeanMapping(ignoreByDefault = true)
-    @Mapping(source = "signature.id", target = "id")
-    @Mapping(source = "author", target = "author")
-    @Mapping(source = "chat", target = "chat")
-    @Mapping(source = "message", target = "content")
-    GroupChatTextMessage map(String message, User author, GroupChat chat, GroupChatMessageSignature signature);
+//    @BeanMapping(ignoreByDefault = true)
+//    @Mapping(source = "signature.id", target = "id")
+//    @Mapping(source = "author", target = "author")
+//    @Mapping(source = "chat", target = "chat")
+//    @Mapping(source = "message", target = "content")
+//    GroupChatTextMessage map(String message, User author, GroupChat chat, GroupChatMessageSignature signature);
 
     @BeanMapping(ignoreByDefault = true)
     @Mapping(source = "signature.id", target = "id")

@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @Transactional
 public class GroupMessageService {
 
-    private String uploadPath;
+    private final String uploadPath;
 
     private final MessageMapper messageMapper;
 

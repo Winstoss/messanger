@@ -63,7 +63,7 @@ public class GroupChat {
     private Timestamp createdAt;
 
     public GroupChat merge(GroupChat groupChat){
-        imagePath = ObjectUtils.defaultIfNull(groupChat.getImagePath(), title);
+        imagePath = ObjectUtils.defaultIfNull(groupChat.getImagePath(), imagePath);
         title = ObjectUtils.defaultIfNull(groupChat.getTitle(), title);
         return this;
     }
