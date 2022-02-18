@@ -2,10 +2,10 @@ package com.windstoss.messanger.api.dto.User;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class UserRetrievalDto {
-
-    private String username;
 
     private String nickname;
 

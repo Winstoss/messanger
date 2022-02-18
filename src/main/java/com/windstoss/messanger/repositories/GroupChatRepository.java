@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -31,6 +32,12 @@ public interface GroupChatRepository extends JpaRepository<GroupChat, UUID> {
             "THEN CAST(1 AS BIT)" +
             "ELSE CAST(0 AS BIT) END", nativeQuery=true)
     boolean isPresentInChat(UUID chatId, UUID userId);
+
+    @Query(value = "SELECT * " +
+                    "FROM group_chat " +
+                    "WHERE id IN ( SELECT chat_id FROM group_chat_user " +
+                    "WHERE user_id=:userId)", nativeQuery = true)
+    Optional<List<GroupChat>> findAllChatsByUserId(UUID userId);
 
     Optional<GroupChat> findById(UUID uuid);
 }

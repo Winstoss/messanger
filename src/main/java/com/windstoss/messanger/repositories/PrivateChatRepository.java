@@ -18,7 +18,7 @@ public interface PrivateChatRepository extends JpaRepository<PrivateChat, UUID> 
     //TODO : rework native to jpql
 
     @Query(value = "SELECT * FROM private_chat WHERE first_user_id=:userId OR second_user_id=:userId", nativeQuery = true)
-    List<PrivateChat> findByChatUserId(UUID userId);
+    Optional<List<PrivateChat>> findChatsByUserId(UUID userId);
 
     @Query(value = "" +
             "SELECT * FROM private_chat " +

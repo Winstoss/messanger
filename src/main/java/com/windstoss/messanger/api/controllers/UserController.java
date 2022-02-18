@@ -1,16 +1,20 @@
 package com.windstoss.messanger.api.controllers;
 
-import com.windstoss.messanger.api.dto.User.CreateUserDto;
-import com.windstoss.messanger.api.dto.User.EditUserDataDto;
-import com.windstoss.messanger.api.dto.User.UserDataDto;
-import com.windstoss.messanger.api.dto.User.UserRetrievalDto;
+import com.windstoss.messanger.api.dto.User.*;
+import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.services.UserService;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 
+@CrossOrigin
 @RequestMapping("/user")
-@RestController
+@RestController()
 public class UserController {
 
     private final UserService userService;
@@ -25,25 +29,41 @@ public class UserController {
         userService.registerUser(user);
     }
 
-    @GetMapping("/{username}")
-    public UserRetrievalDto getUser(@RequestHeader("credentials") String credentials,
-                                    @PathVariable("username") String username) {
-        return userService.getUser(UserDataDto.builder()
-                .credentials(credentials)
-                .username(username)
-                .build());
+    @GetMapping("/me")
+    public UserRetrievalDto getCurrentUser( UsernamePasswordAuthenticationToken principal)
+    {
+        return userService.getCurrentUser((User) principal.getPrincipal());
     }
 
-    @PatchMapping("/edit")
-    public UserRetrievalDto editUser(@RequestHeader("username") String login,
-                                     @RequestBody EditUserDataDto editingDataDto) {
+    @GetMapping("/find")
+    public List<UserSearchEntryDto> getUser(@RequestParam(name = "q") String username,
+                                            UsernamePasswordAuthenticationToken principal)
+    {   final User requester =  (User) principal.getPrincipal();
+        return userService.getUser(username, requester);
+    }
 
-        return userService.editUser(login, editingDataDto);
+    @PatchMapping(value = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserRetrievalDto editUser( @RequestParam(required = false) String nickname,
+                                      @RequestParam(required = false) String bio,
+                                      @RequestParam(required = false) String phoneNumber,
+                                      @RequestParam(required = false) String password,
+                                      @RequestParam(required = false) MultipartFile image,
+                                      UsernamePasswordAuthenticationToken principal) throws IOException {
+
+
+        return userService.editUser((User) principal.getPrincipal(),
+                EditUserDataWithFileDto.builder()
+                        .avatarPath(image)
+                        .bio(bio)
+                        .phoneNumber(phoneNumber)
+                        .nickname(nickname)
+                        .password(password)
+                        .build());
     }
 
     @DeleteMapping("/delete")
-    public void deleteUser(@RequestHeader("credentials") String credentials) {
+    public void deleteUser(UsernamePasswordAuthenticationToken principal) {
 
-        userService.deleteUser(credentials);
+        userService.deleteUser((User) principal.getPrincipal());
     }
 }

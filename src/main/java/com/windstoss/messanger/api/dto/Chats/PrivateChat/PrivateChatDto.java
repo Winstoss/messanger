@@ -1,4 +1,4 @@
-package com.windstoss.messanger.api.dto.PrivateChat;
+package com.windstoss.messanger.api.dto.Chats.PrivateChat;
 
 import lombok.Data;
 

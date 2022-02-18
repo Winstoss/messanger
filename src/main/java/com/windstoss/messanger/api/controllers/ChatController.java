@@ -1,23 +1,28 @@
 package com.windstoss.messanger.api.controllers;
 
-import com.windstoss.messanger.api.dto.GroupChat.CreateGroupChatDto;
-import com.windstoss.messanger.api.dto.GroupChat.DeleteGroupDto;
-import com.windstoss.messanger.api.dto.GroupChat.EditGroupChatDto;
-import com.windstoss.messanger.api.dto.GroupChat.ManageUserInGroupChatDto;
-import com.windstoss.messanger.api.dto.PrivateChat.PrivateChatDto;
+import com.windstoss.messanger.api.dto.Chats.ChatRetrievalDto;
+import com.windstoss.messanger.api.dto.Chats.ChatsRetrievalDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.CreateGroupChatDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.DeleteGroupDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.EditGroupChatDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.ManageUserInGroupChatDto;
+import com.windstoss.messanger.api.dto.Chats.PrivateChat.PrivateChatDto;
 import com.windstoss.messanger.domain.Chats.GroupChat;
 import com.windstoss.messanger.domain.Chats.PrivateChat;
+import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.services.GroupChatService;
 import com.windstoss.messanger.services.PrivateChatService;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-@RequestMapping("/chat")
+@CrossOrigin
+@RequestMapping("/chats")
 @RestController
 public class ChatController {
 
@@ -31,13 +36,25 @@ public class ChatController {
         this.groupChatService = Objects.requireNonNull(groupChatService);
     }
 
-    @GetMapping("/private/{chatId}")
-    public PrivateChat getPrivateChat(@RequestHeader("credentials") String credentials,
-                                      @PathVariable("chatId") UUID chatId
-    ) {
-        return privateChatService.getPrivateChat(credentials, chatId);
+    @GetMapping
+    public List<ChatRetrievalDto> getAllUsersChats(UsernamePasswordAuthenticationToken principal)
+    {
+        final User user = (User) principal.getPrincipal();
+        List<ChatRetrievalDto> chatList = groupChatService.getAllUsersChats(user);
+        chatList.addAll(privateChatService.getAllUsersChats(user));
+
+        return chatList;
+
     }
 
+    @GetMapping("/private/{chatId}")
+    public PrivateChat getPrivateChat(@PathVariable("chatId") UUID chatId,
+                                      UsernamePasswordAuthenticationToken principal
+
+    ) {
+        final User user = (User) principal.getPrincipal();
+        return privateChatService.getPrivateChat(user.getUsername(), chatId);
+    }
 
     @PostMapping("/private")
     public PrivateChat createPrivateChat(

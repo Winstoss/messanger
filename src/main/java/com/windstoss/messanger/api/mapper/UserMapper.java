@@ -2,6 +2,7 @@ package com.windstoss.messanger.api.mapper;
 
 import com.windstoss.messanger.api.dto.User.CreateUserDto;
 import com.windstoss.messanger.api.dto.User.EditUserDataDto;
+import com.windstoss.messanger.api.dto.User.EditedUserRetrievalDto;
 import com.windstoss.messanger.api.dto.User.UserRetrievalDto;
 import com.windstoss.messanger.domain.User;
 import org.mapstruct.Mapper;
@@ -14,4 +15,5 @@ public interface UserMapper {
     User map(EditUserDataDto dto);
 
     UserRetrievalDto map(User user);
+
 }

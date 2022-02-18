@@ -1,6 +1,7 @@
 package com.windstoss.messanger.services;
 
-import com.windstoss.messanger.api.dto.PrivateChat.PrivateChatDto;
+import com.windstoss.messanger.api.dto.Chats.ChatRetrievalDto;
+import com.windstoss.messanger.api.dto.Chats.PrivateChat.PrivateChatDto;
 import com.windstoss.messanger.api.exception.exceptions.ChatAlreadyExistsException;
 import com.windstoss.messanger.api.exception.exceptions.ChatNotFoundException;
 import com.windstoss.messanger.api.exception.exceptions.UserNotFoundException;
@@ -12,8 +13,8 @@ import com.windstoss.messanger.repositories.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -28,6 +29,25 @@ public class PrivateChatService {
                        UserRepository userRepository) {
         this.privateChatRepository = Objects.requireNonNull(privateChatRepository);
         this.userRepository = Objects.requireNonNull(userRepository);
+    }
+
+    public List<ChatRetrievalDto> getAllUsersChats(User user) {
+
+        final List<PrivateChat> chats = privateChatRepository.findChatsByUserId(user.getId())
+                .orElseGet(()-> (Collections.EMPTY_LIST));
+
+        return chats.stream().map((it)->(ChatRetrievalDto.builder()
+                .chatName((
+                        it.getSecondUser().getId().equals(user.getId()))
+                        ?(it.getFirstUser().getNickname())
+                        :(it.getSecondUser().getNickname()))
+                .chatId(it.getId())
+                .type("private")
+                .chatImage((
+                        it.getSecondUser().getId().equals(user.getId()))
+                        ?(it.getFirstUser().getAvatarPath())
+                        :(it.getSecondUser().getAvatarPath()))
+                .build())).collect(Collectors.toList());
     }
 
     public PrivateChat getPrivateChat(String credentials, UUID chatId) {
@@ -74,4 +94,6 @@ public class PrivateChatService {
     private PrivateChat assertChatExists(UUID user, UUID chatId) {
         return privateChatRepository.findChatById(chatId, user).orElseThrow(ChatNotFoundException::new);
     }
+
+
 }

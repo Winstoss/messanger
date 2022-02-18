@@ -10,5 +10,6 @@ import java.util.UUID;
 @Repository
 public interface GroupChatFileMessageRepository extends JpaRepository<GroupChatFileMessage, UUID> {
 
-    List<GroupChatFileMessage> findByChatId(UUID chatId);
+    List<GroupChatFileMessage> findAllByChatId(UUID chatId);
+
 }

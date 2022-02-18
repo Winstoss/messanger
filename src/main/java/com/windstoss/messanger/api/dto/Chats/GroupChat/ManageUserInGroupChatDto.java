@@ -1,4 +1,4 @@
-package com.windstoss.messanger.api.dto.GroupChat;
+package com.windstoss.messanger.api.dto.Chats.GroupChat;
 
 import lombok.Data;
 

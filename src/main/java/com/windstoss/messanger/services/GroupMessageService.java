@@ -1,7 +1,7 @@
 package com.windstoss.messanger.services;
 
 import com.windstoss.messanger.api.dto.Message.EditTextMessageDto;
-import com.windstoss.messanger.api.dto.Message.GroupChatTextMessageRetrievalDto;
+import com.windstoss.messanger.api.dto.Message.GroupChatMessageRetrievalDto;
 import com.windstoss.messanger.api.dto.Message.SendMessageDto;
 import com.windstoss.messanger.api.dto.Message.SendTextMessageDto;
 import com.windstoss.messanger.api.exception.exceptions.*;
@@ -9,12 +9,11 @@ import com.windstoss.messanger.api.mapper.GroupChatTextMessageRetrievalDtoMapper
 import com.windstoss.messanger.api.mapper.MessageMapper;
 import com.windstoss.messanger.api.mapper.TextMessageDtoMapper;
 import com.windstoss.messanger.domain.Chats.GroupChat;
-import com.windstoss.messanger.domain.Chats.PrivateChat;
-import com.windstoss.messanger.domain.Messages.GroupMessages.GroupChatDescribedFileMessage;
 import com.windstoss.messanger.domain.Messages.GroupMessages.GroupChatTextMessage;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.*;
 import com.windstoss.messanger.utils.StringUtils;
+import org.apache.commons.collections4.ListUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.attribute.UserPrincipalNotFoundException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -82,25 +77,57 @@ public class GroupMessageService {
         return groupChatTextMessageRepository.save(TextMessageDtoMapper.map(sender, chat, sendMessageDto));
     }
 
-    public List<GroupChatTextMessageRetrievalDto> getAllTextMessages(String credentials, UUID chatId) {
+    public List<GroupChatMessageRetrievalDto> getAllMessages(User user, UUID chatId) {
 
 
         if(!groupChatRepository.findById(chatId).orElseThrow(IllegalArgumentException::new)
-                .getUsers().contains(userRepository.findUserByUsername(credentials)
+                .getUsers().contains(userRepository.findById(user.getId())
                         .orElseThrow(IllegalArgumentException::new))){
             throw new IllegalArgumentException();
         }
 
-        return groupChatTextMessageRepository.findMessagesInChat(chatId).stream()
-                .filter(Objects::nonNull)
-                .map(GroupChatTextMessageRetrievalDtoMapper::map)
-                .collect(Collectors.toList());
+        List<GroupChatMessageRetrievalDto> messages = groupChatTextMessageRepository.getAllMessagesInChat(chatId)
+                .stream().filter(Objects::nonNull).map((message)-> GroupChatMessageRetrievalDto.builder()
+                        .messageId(message.getId())
+                        .nickname(message.getAuthor().getNickname())
+                        .text(message.getContent())
+                        .file("")
+                        .build()).collect(Collectors.toList());
+
+        List<GroupChatMessageRetrievalDto> fileMessages = groupChatFileMessageRepository.findAllByChatId(chatId)
+                .stream().filter(Objects::nonNull).map((message)-> GroupChatMessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .nickname(message.getAuthor().getNickname())
+                .text("")
+                .file(message.getFilePath())
+                .build()).collect(Collectors.toList());
+
+        List<GroupChatMessageRetrievalDto> dFileMessages = groupChatDescribedFileMessageRepository.findAllByChatId(chatId)
+                .stream().filter(Objects::nonNull).map((message)-> GroupChatMessageRetrievalDto.builder()
+                        .messageId(message.getId())
+                        .nickname(message.getAuthor().getNickname())
+                        .text(message.getDescription())
+                        .file(message.getFilePath())
+                        .build()).collect(Collectors.toList());
+
+        for(GroupChatMessageRetrievalDto a : dFileMessages) {
+                Iterator<GroupChatMessageRetrievalDto> iterator = fileMessages.iterator();
+                while (iterator.hasNext()) {
+                    GroupChatMessageRetrievalDto element = iterator.next();
+                    if (element.getMessageId() == a.getMessageId()) {
+                        fileMessages.remove(element);
+                    }
+                }
+            }
+
+
+        return ListUtils.union(messages, ListUtils.union(dFileMessages, fileMessages));
     }
 
-    public GroupChatTextMessageRetrievalDto editGroupTextMessage(String credentials,
-                                                     UUID chatId,
-                                                     UUID messageId,
-                                                     EditTextMessageDto data) {
+    public GroupChatMessageRetrievalDto editGroupTextMessage(String credentials,
+                                                             UUID chatId,
+                                                             UUID messageId,
+                                                             EditTextMessageDto data) {
 
         final User user = userRepository.findUserByUsername(credentials).orElseThrow(UserNotFoundException::new);
 

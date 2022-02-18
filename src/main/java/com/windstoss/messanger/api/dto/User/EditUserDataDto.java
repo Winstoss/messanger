@@ -4,16 +4,18 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class EditUserDataDto {
+
     private String nickname;
-    private String username;
     private String password;
-    private String phone_number;
+    private String phoneNumber;
     private String bio;
-    private String avatar_path;
+    private String avatarPath;
+
 }

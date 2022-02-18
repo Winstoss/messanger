@@ -79,10 +79,9 @@ public class PrivateMessageService {
         return privateChatTextMessageRepository.save(TextMessageDtoMapper.map(sender, chat, data));
     }
 
-    public List<PrivateChatTextMessage> getAllTextMessages(String user, UUID chatId) {
+    public List<PrivateChatTextMessage> getAllTextMessages(User user, UUID chatId) {
 
-        final User sender = exists(user);
-        requestedChatExists(sender.getId(), chatId);
+        requestedChatExists(user.getId(), chatId);
 
         return privateChatTextMessageRepository.findMessagesInChat(chatId);
     }

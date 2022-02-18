@@ -1,9 +1,11 @@
 package com.windstoss.messanger.services;
 
-import com.windstoss.messanger.api.dto.GroupChat.CreateGroupChatDto;
-import com.windstoss.messanger.api.dto.GroupChat.DeleteGroupDto;
-import com.windstoss.messanger.api.dto.GroupChat.EditGroupChatDto;
-import com.windstoss.messanger.api.dto.GroupChat.ManageUserInGroupChatDto;
+import com.windstoss.messanger.api.dto.Chats.ChatRetrievalDto;
+import com.windstoss.messanger.api.dto.Chats.ChatsRetrievalDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.CreateGroupChatDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.DeleteGroupDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.EditGroupChatDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.ManageUserInGroupChatDto;
 import com.windstoss.messanger.api.exception.exceptions.*;
 import com.windstoss.messanger.api.mapper.GroupChatDtoMapper;
 import com.windstoss.messanger.domain.Chats.GroupChat;
@@ -19,9 +21,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -41,6 +42,19 @@ public class GroupChatService {
         this.userRepository = Objects.requireNonNull(userRepository);
     }
 
+
+    public List<ChatRetrievalDto> getAllUsersChats(User user) {
+
+        final List<GroupChat> chats = groupChatRepository.findAllChatsByUserId(user.getId())
+                .orElseGet(()-> Collections.EMPTY_LIST);
+
+        return chats.stream().map((it) -> (ChatRetrievalDto.builder()
+                .chatId(it.getId())
+                .type("group")
+                .chatImage(it.getImagePath())
+                .chatName(it.getTitle())
+                .build())).collect(Collectors.toList());
+    }
 
     public GroupChat getGroupChat(String credentials, UUID chatId) {
 

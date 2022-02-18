@@ -132,5 +132,16 @@ public class RequestExceptionHandler {
         return new ResponseEntity<>(requestException, httpStatus);
     }
 
+    @ExceptionHandler
+    public ResponseEntity<Object> handleRequestException(InvalidCredentialsException e){
+        HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
+
+        RequestException requestException = new RequestException( "Such credentials are incorrect",
+                ZonedDateTime.now()
+        );
+
+        return new ResponseEntity<>(requestException, httpStatus);
+    }
+
 
 }

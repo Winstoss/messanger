@@ -1,6 +1,6 @@
 package com.windstoss.messanger.api.mapper;
 
-import com.windstoss.messanger.api.dto.GroupChat.CreateGroupChatDto;
+import com.windstoss.messanger.api.dto.Chats.GroupChat.CreateGroupChatDto;
 import com.windstoss.messanger.domain.Chats.GroupChat;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.utils.StringUtils;
