@@ -9,6 +9,6 @@ public class CreateUserDto {
     private String nickname;
     private String username;
     private String password;
-    private String phone_number;
+    private String phoneNumber;
     private String bio;
 }

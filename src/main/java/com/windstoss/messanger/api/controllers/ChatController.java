@@ -37,8 +37,7 @@ public class ChatController {
     }
 
     @GetMapping
-    public List<ChatRetrievalDto> getAllUsersChats(UsernamePasswordAuthenticationToken principal)
-    {
+    public List<ChatRetrievalDto> getAllUsersChats(UsernamePasswordAuthenticationToken principal) {
         final User user = (User) principal.getPrincipal();
         List<ChatRetrievalDto> chatList = groupChatService.getAllUsersChats(user);
         chatList.addAll(privateChatService.getAllUsersChats(user));
@@ -47,30 +46,35 @@ public class ChatController {
 
     }
 
-    @GetMapping("/private/{chatId}")
-    public PrivateChat getPrivateChat(@PathVariable("chatId") UUID chatId,
+    @GetMapping("/private/{userId}")
+    public PrivateChat getPrivateChat(@PathVariable("userId") UUID secondUserId,
                                       UsernamePasswordAuthenticationToken principal
-
     ) {
-        final User user = (User) principal.getPrincipal();
-        return privateChatService.getPrivateChat(user.getUsername(), chatId);
+        return privateChatService.getPrivateChat((User) principal.getPrincipal(), secondUserId);
     }
 
-    @PostMapping("/private")
-    public PrivateChat createPrivateChat(
-            @RequestHeader("credentials") String credentials,
-            @RequestBody PrivateChatDto secondUser
+    @PostMapping("/private/{userId}")
+    public PrivateChat createPrivateChat(@PathVariable("userId") UUID secondUserId,
+                                         UsernamePasswordAuthenticationToken principal
     ) {
-        return privateChatService.createPrivateChat(credentials, secondUser);
+        return privateChatService.createPrivateChat((User) principal.getPrincipal(), secondUserId);
     }
 
 
-    @DeleteMapping("/private/{chatId}")
-    public void deletePrivateChat(
-            @RequestHeader("credentials") String credentials,
-            @PathVariable UUID chatId) {
-        privateChatService.deletePrivateChat(credentials, chatId);
+    @DeleteMapping("/private/{userId}")
+    public void deletePrivateChat(@PathVariable("userId") UUID secondUserID,
+                                  UsernamePasswordAuthenticationToken principal) {
+        privateChatService.deletePrivateChat((User) principal.getPrincipal(), secondUserID);
     }
+
+    @DeleteMapping("/deleted/{schatId}")
+    public void deleteDeletedChat(@PathVariable("chatId") UUID chatId,
+                                            UsernamePasswordAuthenticationToken principal){
+
+        privateChatService.deleteDeletedChat((User) principal.getPrincipal(), chatId);
+    }
+
+    //-----------------------------------GroupChats--------------------------------------------
 
     @GetMapping("/group/{chatId}")
     public GroupChat getGroupChat(@RequestHeader("credentials") String credentials,
@@ -104,7 +108,7 @@ public class ChatController {
             @PathVariable("chatId") UUID chatId,
             @RequestParam(required = false) MultipartFile image,
             @RequestParam(required = false) String title
-            )  {
+    ) {
         groupChatService.editGroupChat(credentials, chatId, EditGroupChatDto.builder()
                 .image(image)
                 .title(title)
@@ -140,7 +144,7 @@ public class ChatController {
     ) {
         groupChatService.addUserInGroupChat(credentials, chatId, editData);
     }
-    
+
 
     @PatchMapping("/group/{chatId}/user-delete")
     public void deleteUserInGroupChat(

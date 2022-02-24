@@ -1,6 +1,7 @@
 package com.windstoss.messanger.api.exception;
 
 import com.windstoss.messanger.api.exception.exceptions.*;
+import org.springframework.core.convert.ConversionFailedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -10,6 +11,11 @@ import java.time.ZonedDateTime;
 
 @ControllerAdvice
 public class RequestExceptionHandler {
+
+    @ExceptionHandler(ConversionFailedException.class)
+    public ResponseEntity<String> handleConflict(RuntimeException ex) {
+        return new ResponseEntity<>("Message type is not specified", HttpStatus.BAD_REQUEST);
+    }
 
     @ExceptionHandler
     public ResponseEntity<Object> handleRequestException(UserCreationException e){
@@ -143,5 +149,37 @@ public class RequestExceptionHandler {
         return new ResponseEntity<>(requestException, httpStatus);
     }
 
+    @ExceptionHandler
+    public ResponseEntity<Object> handleRequestException(InternalStorageException e){
+        HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
+
+        RequestException requestException = new RequestException( "File storage in unreachable at this time",
+                ZonedDateTime.now()
+        );
+
+        return new ResponseEntity<>(requestException, httpStatus);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<Object> handleRequestException(MessageIsEqualException e){
+        HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
+
+        RequestException requestException = new RequestException( "Message is equal to previous",
+                ZonedDateTime.now()
+        );
+
+        return new ResponseEntity<>(requestException, httpStatus);
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<Object> handleRequestException(MessageIsEmptyException e){
+        HttpStatus httpStatus = HttpStatus.BAD_REQUEST;
+
+        RequestException requestException = new RequestException( "Message is empty",
+                ZonedDateTime.now()
+        );
+
+        return new ResponseEntity<>(requestException, httpStatus);
+    }
 
 }

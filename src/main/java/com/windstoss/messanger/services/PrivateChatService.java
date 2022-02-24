@@ -47,53 +47,57 @@ public class PrivateChatService {
                         it.getSecondUser().getId().equals(user.getId()))
                         ?(it.getFirstUser().getAvatarPath())
                         :(it.getSecondUser().getAvatarPath()))
-                .build())).collect(Collectors.toList());
+                .build())).peek((dto)-> {
+        }).collect(Collectors.toList());
     }
 
-    public PrivateChat getPrivateChat(String credentials, UUID chatId) {
+    public PrivateChat getPrivateChat(User requester, UUID secondUserID) {
 
-        User user = userRepository.findUserByUsername(credentials)
-                .orElseThrow(UserNotFoundException::new);
-
-        return assertChatExists(user.getId(), chatId);
+        return privateChatRepository.findByUsersId(requester.getId(), secondUserID).orElseGet(PrivateChat::new);
     }
 
 
-    public PrivateChat createPrivateChat(String firstUserData, PrivateChatDto secondUserData) {
+    public PrivateChat createPrivateChat(User requester, UUID secondUserId) {
 
-        String secondUser = CreatePrivateChatDtoMapper.dtoToUser(secondUserData);
+        User secondUser = userExists(secondUserId);
 
-        User user1 = userExists(firstUserData);
-        User user2 = userExists(secondUser);
-
-        privateChatRepository.findByUsersId(user1.getId(), user2.getId()).ifPresent(x -> {
+        privateChatRepository.findByUsersId(requester.getId(), secondUserId).ifPresent(x -> {
             throw new ChatAlreadyExistsException();
         });
 
         return privateChatRepository.save(PrivateChat.builder()
-                .firstUser(user1)
-                .secondUser(user2)
+                .firstUser(requester)
+                .secondUser(secondUser)
                 .build());
 
     }
 
-    public void deletePrivateChat(String credentials, UUID chatId) {
+    public void deletePrivateChat(User requester, UUID secondUserId) {
 
-        User user = userExists(credentials);
-
-        PrivateChat chat = assertChatExists(user.getId(), chatId);
+        PrivateChat chat = assertChatExists(requester.getId(), userExists(secondUserId).getId());
 
         privateChatRepository.delete(chat);
     }
 
-    private User userExists(String username){
-        return userRepository.findUserByUsername(username)
+    public void deleteDeletedChat(User requester, UUID chatId) {
+
+        if(!privateChatRepository.userPresentInChat(requester.getId(), chatId)){
+            throw new ChatNotFoundException();
+        };
+
+        privateChatRepository.delete(privateChatRepository.findById(chatId)
+                .orElseThrow(ChatNotFoundException::new));
+    }
+
+    private User userExists(UUID userId){
+        return userRepository.findUserById(userId)
                 .orElseThrow(UserNotFoundException::new);
     }
 
-    private PrivateChat assertChatExists(UUID user, UUID chatId) {
-        return privateChatRepository.findChatById(chatId, user).orElseThrow(ChatNotFoundException::new);
+    private PrivateChat assertChatExists(UUID requester, UUID secondUserId) {
+        return privateChatRepository.findByUsersId(requester, secondUserId).orElseThrow(ChatNotFoundException::new);
     }
+
 
 
 }

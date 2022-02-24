@@ -62,16 +62,23 @@ public class UserService {
 
 
 
-    public void registerUser(CreateUserDto userData) {
+    public boolean registerUser(CreateUserDto userData) {
 
-        User user = userMapper.map(userData);
 
-        userRepository.findUserByUsername(user.getUsername())
+
+        userRepository.findUserByUsername(userData.getUsername())
                 .ifPresent(usr -> {
                     throw new UserCreationException();
                 });
 
-        userRepository.save(user);
+        userRepository.save(User.builder()
+                .username(userData.getUsername())
+                .nickname(userData.getNickname())
+                .password(userData.getPassword())
+                .phoneNumber(userData.getPhoneNumber())
+                .bio(userData.getBio())
+                .build());
+        return true;
     }
 
     public UserRetrievalDto editUser(User user, EditUserDataWithFileDto editingDataDto) throws IOException {

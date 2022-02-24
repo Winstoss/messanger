@@ -13,7 +13,7 @@ import java.util.UUID;
 @Repository
 public interface PrivateChatRepository extends JpaRepository<PrivateChat, UUID> {
 
-    Optional<PrivateChat> findPrivateChatById(UUID id);
+
 
     //TODO : rework native to jpql
 
@@ -29,4 +29,7 @@ public interface PrivateChatRepository extends JpaRepository<PrivateChat, UUID> 
 
     @Query(value = "SELECT p FROM PrivateChat p WHERE p.id = :chatId AND (p.firstUser.id = :userId OR p.secondUser.id = :userId)")
     Optional<PrivateChat> findChatById(UUID chatId, UUID userId);
+
+    @Query(value = "SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM PrivateChat p WHERE p.id = :chatId AND (p.firstUser.id=:userId OR p.secondUser.id=:userId)")
+    boolean userPresentInChat(UUID userId, UUID chatId);
 }

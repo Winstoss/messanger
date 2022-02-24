@@ -1,15 +1,15 @@
 package com.windstoss.messanger.services;
 
 
-import com.windstoss.messanger.api.dto.Message.EditTextMessageDto;
-import com.windstoss.messanger.api.dto.Message.SendDescribedFileMessageDto;
-import com.windstoss.messanger.api.dto.Message.SendMessageDto;
-import com.windstoss.messanger.api.dto.Message.SendTextMessageDto;
+import com.windstoss.messanger.api.dto.Message.*;
 import com.windstoss.messanger.api.exception.exceptions.*;
-import com.windstoss.messanger.api.mapper.MessageMapper;
 import com.windstoss.messanger.api.mapper.TextMessageDtoMapper;
+import com.windstoss.messanger.domain.Chats.GroupChat;
 import com.windstoss.messanger.domain.Chats.PrivateChat;
+import com.windstoss.messanger.domain.Messages.GroupMessages.GroupChatDescribedFileMessage;
+import com.windstoss.messanger.domain.Messages.GroupMessages.GroupChatFileMessage;
 import com.windstoss.messanger.domain.Messages.PrivateMessages.PrivateChatDescribedFileMessage;
+import com.windstoss.messanger.domain.Messages.PrivateMessages.PrivateChatFileMessage;
 import com.windstoss.messanger.domain.Messages.PrivateMessages.PrivateChatTextMessage;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.*;
@@ -22,13 +22,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
-@Transactional
+@Transactional(rollbackFor=Exception.class)
 public class PrivateMessageService {
 
     //TODO: add filters to messages
@@ -37,170 +37,329 @@ public class PrivateMessageService {
 
     private final PrivateChatDescribedFileMessageRepository privateChatDescribedFileMessageRepository;
 
-    private final UserRepository userRepository;
-
     private final PrivateChatRepository privateChatRepository;
-
-    private final PrivateChatMessageSignatureRepository privateChatMessageSignatureRepository;
 
     private final PrivateChatFileMessageRepository privateChatFileMessageRepository;
 
     private final PrivateChatTextMessageRepository privateChatTextMessageRepository;
 
-    private final MessageMapper messageMapper;
 
     public PrivateMessageService(
             @Value("${upload.path}") String uploadPath,
             PrivateChatDescribedFileMessageRepository privateChatDescribedFileMessageRepository,
-            PrivateChatMessageSignatureRepository privateChatMessageSignatureRepository,
             PrivateChatTextMessageRepository privateChatTextMessageRepository,
             PrivateChatFileMessageRepository privateChatFileMessageRepository,
-            PrivateChatRepository privateChatRepository,
-            UserRepository userRepository,
-            MessageMapper messageMapper) {
+            PrivateChatRepository privateChatRepository) {
 
         this.uploadPath = Objects.requireNonNull(uploadPath);
-        this.privateChatMessageSignatureRepository = Objects.requireNonNull(privateChatMessageSignatureRepository);
         this.privateChatTextMessageRepository = Objects.requireNonNull(privateChatTextMessageRepository);
         this.privateChatFileMessageRepository = Objects.requireNonNull(privateChatFileMessageRepository);
         this.privateChatDescribedFileMessageRepository = Objects.requireNonNull(privateChatDescribedFileMessageRepository);
         this.privateChatRepository = Objects.requireNonNull(privateChatRepository);
-        this.userRepository = Objects.requireNonNull(userRepository);
-        this.messageMapper = Objects.requireNonNull(messageMapper);
     }
 
-
-    public PrivateChatTextMessage sendPrivateTextMessage(String author, UUID chatId, SendTextMessageDto data) {
-
-        final User sender = exists(author);
-
-        final PrivateChat chat = requestedChatExists(sender.getId(), chatId);
-
-        return privateChatTextMessageRepository.save(TextMessageDtoMapper.map(sender, chat, data));
-    }
-
-    public List<PrivateChatTextMessage> getAllTextMessages(User user, UUID chatId) {
+    public List<MessageRetrievalDto> getAllTextMessages(User user, UUID chatId) {
 
         requestedChatExists(user.getId(), chatId);
 
-        return privateChatTextMessageRepository.findMessagesInChat(chatId);
+        List<MessageRetrievalDto> textMessages = privateChatDescribedFileMessageRepository.findAllByChatId(chatId)
+                .stream()
+                    .map(it -> MessageRetrievalDto.builder()
+                            .messageId(it.getId())
+                            .nickname(it.getAuthor().getNickname())
+                            .text(it.getDescription())
+                            .file(it.getFilePath())
+                            .build())
+                .collect(Collectors.toList());
+
+        List<MessageRetrievalDto> fileMessages = privateChatTextMessageRepository.findMessagesInChat(chatId)
+                .stream()
+                .map(it -> MessageRetrievalDto.builder()
+                        .messageId(it.getId())
+                        .nickname(it.getAuthor().getNickname())
+                        .text(it.getContent())
+                        .file(null)
+                        .build())
+                .collect(Collectors.toList());
+
+        List<MessageRetrievalDto> describedMessages = privateChatFileMessageRepository.findFileMessagesByChat(chatId)
+                .stream()
+                .map(it -> MessageRetrievalDto.builder()
+                        .messageId(it.getId())
+                        .nickname(it.getAuthor().getNickname())
+                        .text(null)
+                        .file(it.getFilePath())
+                        .build())
+                .collect(Collectors.toList());
+
+        for (MessageRetrievalDto a : describedMessages) {
+            fileMessages.removeIf(it -> it.getMessageId() == a.getMessageId());
+        }
+
+
+        textMessages.addAll(fileMessages);
+        textMessages.addAll(describedMessages);
+
+        return textMessages;
     }
 
 
-    public PrivateChatTextMessage editPrivateTextMessage(String credentials,
-                                                         UUID chatId,
-                                                         UUID messageId,
-                                                         EditTextMessageDto data) {
-        final User author = exists(credentials);
-        requestedChatExists(author.getId(), chatId);
+    public MessageRetrievalDto sendPrivateTextMessage(User sender, UUID chatId, String text) {
 
-        final PrivateChatTextMessage message = privateChatTextMessageRepository.findById(messageId)
-                .orElseThrow(MessageNotFoundException::new);
-
-        if (StringUtils.isEmpty(data.getText())) {
-            throw new ContentIsEmptyException();
+        if(StringUtils.isEmpty(text)){
+            throw new MessageIsEmptyException();
         }
 
-        if (!author.equals(message.getAuthor())) {
+        final PrivateChat chat = requestedChatExists(sender.getId(), chatId);
+
+        PrivateChatTextMessage message = privateChatTextMessageRepository.save(PrivateChatTextMessage.builder()
+                        .content(text)
+                        .author(sender)
+                        .chat(chat)
+                        .build());
+        
+        return MessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .text(text)
+                .file(null)
+                .nickname(sender.getNickname())
+                .build();
+    }
+
+    public MessageRetrievalDto sendPrivateFileMessage(User sender, UUID chatId, MultipartFile file) throws IOException {
+
+        final PrivateChat chat = requestedChatExists(sender.getId(), chatId);
+
+        File uploadDir = new File(uploadPath);
+
+        if (!uploadDir.exists()) {
+            uploadDir.mkdir();
+        }
+
+        String fileId = UUID.randomUUID().toString();
+        String fileName = fileId + "." + file.getOriginalFilename();
+        String filePath = uploadPath + "\\" + fileName;
+
+        file.transferTo(new File(filePath));
+        PrivateChatFileMessage message = privateChatFileMessageRepository.save(PrivateChatFileMessage.builder()
+                .filePath(filePath)
+                .chat(chat)
+                .author(sender)
+                .build());
+
+        return MessageRetrievalDto.builder()
+                .file(message.getFilePath())
+                .nickname(sender.getNickname())
+                .messageId(message.getId())
+                .text(null)
+                .build();
+    }
+
+    public MessageRetrievalDto sendPrivateDescribedFileMessage(User sender,
+                                                               UUID chatId,
+                                                               MultipartFile file,
+                                                               String text) throws IOException {
+        final PrivateChat chat = requestedChatExists(sender.getId(), chatId);
+
+        File uploadDir = new File(uploadPath);
+
+        if (!uploadDir.exists()) {
+            uploadDir.mkdir();
+        }
+
+        String fileId = UUID.randomUUID().toString();
+        String fileName = fileId + "." + file.getOriginalFilename();
+        String filePath = uploadPath + "\\" + fileName;
+
+        file.transferTo(new File(filePath));
+
+        PrivateChatDescribedFileMessage message = privateChatDescribedFileMessageRepository
+                .save(PrivateChatDescribedFileMessage.builder()
+                        .description(text)
+                        .author(sender)
+                        .filePath(filePath)
+                        .chat(chat)
+                        .build());
+
+
+        return MessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .text(message.getDescription())
+                .file(message.getFilePath())
+                .nickname(sender.getNickname())
+                .build();
+    }
+
+    public MessageRetrievalDto editPrivateTextMessage(User editor,
+                                                      UUID chatId,
+                                                      UUID messageId,
+                                                      String text) {
+        requestedChatExists(editor.getId(), chatId);
+
+        PrivateChatTextMessage message = privateChatTextMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
+
+        if (!editor.equals(message.getAuthor())) {
+            throw new MessageAuthorityException();
+        }
+        
+        message.setContent(text);
+        privateChatTextMessageRepository.save(message);
+        
+        return MessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .file(null)
+                .text(text)
+                .nickname(editor.getNickname())
+                .build();
+    }
+
+    public MessageRetrievalDto editPrivateFileMessage(User editor,
+                                                      UUID chatId,
+                                                      UUID messageId,
+                                                      MultipartFile file) throws IOException {
+
+        requestedChatExists(editor.getId(), chatId);
+        PrivateChatFileMessage message = privateChatFileMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
+
+        if(file == null && file.isEmpty()){
+            throw new MessageIsEmptyException();
+        }
+
+        if (!message.getAuthor().equals(editor)){
             throw new MessageAuthorityException();
         }
 
-        return privateChatTextMessageRepository.save(message);
+        File uploadDir = new File(uploadPath);
+
+        if (!uploadDir.exists()) {
+            uploadDir.mkdir();
+        }
+
+        String fileId = UUID.randomUUID().toString();
+        String fileName = fileId + "." + file.getOriginalFilename();
+        String filePath = uploadPath + "\\" + fileName;
+
+        if (message.getFilePath().equals(filePath)){
+            throw new MessageIsEqualException();
+        }
+
+        Files.delete(Paths.get(message.getFilePath()));
+        file.transferTo(new File(filePath));
+        message.setFilePath(filePath);
+        privateChatFileMessageRepository.save(message);
+
+        return MessageRetrievalDto.builder()
+                .file(message.getFilePath())
+                .nickname(editor.getNickname())
+                .messageId(message.getId())
+                .text(null)
+                .build();
+    }
+
+    public MessageRetrievalDto editPrivateDescribedFileMessage(User editor,
+                                                               UUID chatId,
+                                                               UUID messageId,
+                                                               MultipartFile file,
+                                                               String text) throws IOException {
+        requestedChatExists(editor.getId(), chatId);
+        PrivateChatDescribedFileMessage message = privateChatDescribedFileMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
+
+        if (!message.getAuthor().equals(editor)){
+            throw new MessageAuthorityException();
+        }
+
+        if(StringUtils.isEmpty(text) && (file == null || file.isEmpty())){
+            throw new MessageIsEmptyException();
+        }
+
+        if(file != null && !file.isEmpty()) {
+            File uploadDir = new File(uploadPath);
+
+            if (!uploadDir.exists()) {
+                uploadDir.mkdir();
+            }
+
+            String fileId = UUID.randomUUID().toString();
+            String fileName = fileId + "." + file.getOriginalFilename();
+            String filePath = uploadPath + "\\" + fileName;
+
+            if (message.getFilePath().equals(filePath)) {
+                throw new MessageIsEqualException();
+            }
+            Files.delete(Paths.get(message.getFilePath()));
+            file.transferTo(new File(filePath));
+            message.setFilePath(filePath);
+        }
+
+        message.setDescription(StringUtils.defaultIfEmpty(text, message.getDescription()));
+        privateChatFileMessageRepository.save(message);
+
+        return MessageRetrievalDto.builder()
+                .file(message.getFilePath())
+                .nickname(editor.getNickname())
+                .messageId(message.getId())
+                .text(text)
+                .build();
     }
 
 
-    public void deletePrivateChatTextMessage(String credentials, UUID chatId, UUID messageId) {
-        final User user = exists(credentials);
-        final PrivateChat chat = requestedChatExists(user.getId(), chatId);
+    public boolean deleteTextMessage(User requester, UUID chatId, UUID messageId) {
+
+        requestedChatExists(requester.getId(), chatId);
         final PrivateChatTextMessage message = privateChatTextMessageRepository.findById(messageId)
                 .orElseThrow(MessageNotFoundException::new);
 
-        if (!user.equals(message.getAuthor())) {
+        if (!requester.equals(message.getAuthor())) {
             throw new MessageAuthorityException();
         }
 
         privateChatTextMessageRepository.delete(message);
+
+        return true;
     }
 
-    public List<String> sendMessageWithFile(SendMessageDto data) throws IOException {
 
-        //TODO: to get rid of if-statement
-        final User sender = exists(data.getAuthor());
-        final PrivateChat chat = requestedChatExists(sender.getId(), data.getChatId());
-        List<String> list = new ArrayList<String>();
+    public boolean deleteFileMessage(User requester, UUID chatId, UUID messageId) throws IOException {
 
-        if(StringUtils.isEmpty(data.getText())){
-            return sendFileMessage(data, list, sender, chat);
-        } else {
-            return sendDescribedFileMessage(data, list, sender, chat);
+        requestedChatExists(requester.getId(), chatId);
+        final PrivateChatFileMessage message = privateChatFileMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
+
+        if (!requester.equals(message.getAuthor())) {
+            throw new MessageAuthorityException();
         }
 
+        Files.delete(Paths.get(message.getFilePath()));
+
+        privateChatFileMessageRepository.delete(message);
+
+        return true;
     }
 
-    private List<String> sendFileMessage(SendMessageDto data,
-                                         List<String> list, User sender,
-                                         PrivateChat chat) throws IOException{
+    public boolean deleteDescribedFileMessage(User requester, UUID chatId, UUID messageId) throws IOException {
 
-        final MultipartFile file = data.getFile();
+        requestedChatExists(requester.getId(), chatId);
+        final PrivateChatDescribedFileMessage message = privateChatDescribedFileMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
 
-        if (file != null) {
-            File uploadDir = new File(uploadPath);
-
-            if (!uploadDir.exists()) {
-                uploadDir.mkdir();
-            }
-
-            String fileId = UUID.randomUUID().toString();
-            String fileName = fileId + "." + file.getOriginalFilename();
-            String filePath = uploadPath + "\\" + fileName;
-
-            file.transferTo(new File(filePath));
-
-
-            list.add(privateChatFileMessageRepository
-                    .save(TextMessageDtoMapper.mapF(sender, chat, filePath))
-                    .getFilePath());
-
+        if (!requester.equals(message.getAuthor())) {
+            throw new MessageAuthorityException();
         }
 
-        return list;
-    }
+        Files.delete(Paths.get(message.getFilePath()));
 
-    private List<String> sendDescribedFileMessage(SendMessageDto data,
-                                                  List<String> list,
-                                                  User sender,
-                                                  PrivateChat chat) throws IOException{
-        final MultipartFile file = data.getFile();
+        privateChatFileMessageRepository.delete(message);
 
-        if (file != null) {
-            File uploadDir = new File(uploadPath);
+        return true;
 
-            if (!uploadDir.exists()) {
-                uploadDir.mkdir();
-            }
-
-            String fileId = UUID.randomUUID().toString();
-            String fileName = fileId + "." + file.getOriginalFilename();
-            String filePath = uploadPath + "\\" + fileName;
-
-            file.transferTo(new File(filePath));
-
-            list.add(data.getText());
-            list.add(privateChatDescribedFileMessageRepository
-                    .save(TextMessageDtoMapper.mapDF(sender, chat, filePath, data.getText()))
-                    .getFilePath());
-        }
-
-        return list;
-    }
-
-    private User exists(String username){
-        return userRepository.findUserByUsername(username)
-                .orElseThrow(UserNotFoundException::new);
     }
 
     private PrivateChat requestedChatExists(UUID userId, UUID chatId){
         return privateChatRepository.findChatById(chatId, userId).orElseThrow(ChatNotFoundException::new);
     }
+
 
 }

@@ -1,12 +1,12 @@
 package com.windstoss.messanger.api.controllers;
 
-import com.windstoss.messanger.api.dto.Message.EditTextMessageDto;
-import com.windstoss.messanger.api.dto.Message.SendMessageDto;
-import com.windstoss.messanger.api.dto.Message.SendTextMessageDto;
+import com.windstoss.messanger.api.dto.Message.MessageRetrievalDto;
+import com.windstoss.messanger.api.dto.Message.MessageTypes;
+import com.windstoss.messanger.api.exception.exceptions.InternalStorageException;
 import com.windstoss.messanger.api.mapper.ControllerMessageMapper;
-import com.windstoss.messanger.domain.Messages.PrivateMessages.PrivateChatTextMessage;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.services.PrivateMessageService;
+import com.windstoss.messanger.utils.StringUtils;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.UUID;
 
 @CrossOrigin
-@RequestMapping("/chats")
+@RequestMapping("/chats/private")
 @RestController
 public class PrivateMessageController {
 
@@ -31,46 +31,76 @@ public class PrivateMessageController {
         this.controllerMessageMapper = controllerMessageMapper;
     }
 
-    @GetMapping("/private/{chatId}/messages/")
-    public List<PrivateChatTextMessage> getAllTextMessages(@PathVariable("chatId") UUID chatId,
+    @GetMapping("/{chatId}/messages/")
+    public List<MessageRetrievalDto> getAllMessages(@PathVariable("chatId") UUID chatId,
                                                            UsernamePasswordAuthenticationToken principal) {
+
         return privateMessageService.getAllTextMessages((User) principal.getPrincipal(), chatId);
+    }
+
+    @PostMapping(value = "/{chatId}/messages/", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public MessageRetrievalDto sendFileMessage(@PathVariable UUID chatId,
+                                               @RequestHeader("type") MessageTypes type,
+                                               @RequestParam(required = false) String text,
+                                               @RequestParam(required = false) MultipartFile file,
+                                               UsernamePasswordAuthenticationToken principal) {
+
+        try{
+            switch(type){
+                case TEXT: return privateMessageService.sendPrivateTextMessage((User) principal.getPrincipal(), chatId, text);
+                case FILE: return privateMessageService.sendPrivateFileMessage((User) principal.getPrincipal(), chatId, file);
+                case DESCRIBED: return privateMessageService.sendPrivateDescribedFileMessage((User) principal.getPrincipal(), chatId, file, text);
+            }
+        } catch (IOException e){
+            throw new InternalStorageException();
+        }
+
+        return MessageRetrievalDto.builder().text("your message is empty!").build();
 
     }
 
-    @PostMapping("/private/{chatId}/messages/")
-    public PrivateChatTextMessage sendPrivateChatTextMessage(@RequestHeader("credentials") String credentials,
-                                                             @PathVariable("chatId") UUID chatId,
-                                                             @RequestBody SendTextMessageDto sendMessageDto
-    ) {
-        return privateMessageService.sendPrivateTextMessage(credentials, chatId, sendMessageDto);
+
+    @PatchMapping("{chatId}/messages/{messageId}")
+    public MessageRetrievalDto editPrivateChatMessage(@PathVariable UUID chatId,
+                                                      @PathVariable UUID messageId,
+                                                      @RequestHeader("type") MessageTypes type,
+                                                      @RequestParam(required = false) String text,
+                                                      @RequestParam(required = false) MultipartFile file,
+                                                      UsernamePasswordAuthenticationToken principal) {
+        try{
+            switch(type){
+                case TEXT: return privateMessageService.editPrivateTextMessage((User) principal.getPrincipal(), chatId, messageId, text);
+                case FILE: return privateMessageService.editPrivateFileMessage((User) principal.getPrincipal(), chatId, messageId, file);
+                case DESCRIBED: return privateMessageService.editPrivateDescribedFileMessage((User) principal.getPrincipal(), chatId, messageId, file, text);
+            }
+        } catch (IOException e){
+            throw new InternalStorageException();
+        }
+
+        return MessageRetrievalDto.builder().text("your message is empty!").build();
+
+    }
+
+    @DeleteMapping("/{chatId}/messages/{messageId}")
+    public boolean deletePrivateTextMessage(@PathVariable UUID chatId,
+                                         @PathVariable UUID messageId,
+                                         @RequestHeader("type") MessageTypes type,
+                                         UsernamePasswordAuthenticationToken principal) {
+
+        try{
+            switch(type){
+                case TEXT: return privateMessageService.deleteTextMessage((User) principal.getPrincipal(), chatId, messageId);
+                case FILE: return privateMessageService.deleteFileMessage((User) principal.getPrincipal(), chatId, messageId);
+                case DESCRIBED: return privateMessageService.deleteDescribedFileMessage((User) principal.getPrincipal(), chatId, messageId);
+            }
+        } catch (IOException e){
+            throw new InternalStorageException();
+        }
+        return false;
     }
 
 
-    @PatchMapping("/private/{chatId}/messages/{messageId}")
-    public PrivateChatTextMessage editPrivateChatTextMessage(@RequestHeader("credentials") String credentials,
-                                                             @PathVariable UUID chatId,
-                                                             @PathVariable UUID messageId,
-                                                             @RequestBody EditTextMessageDto data) {
-        return privateMessageService.editPrivateTextMessage(credentials, chatId, messageId, data);
-    }
 
-    @DeleteMapping("/private/{chatId}/messages/{messageId}")
-    public void deletePrivateTextMessage(@RequestHeader("credentials") String credentials,
-                                         @PathVariable UUID chatId,
-                                         @PathVariable UUID messageId) {
-        privateMessageService.deletePrivateChatTextMessage(credentials, chatId, messageId);
-    }
-
-
-    @PostMapping(value = "/private/{chatId}/messages-new/", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public List<String> sendFileMessage(@RequestHeader("credentials") String credentials,
-                                        @PathVariable UUID chatId,
-                                        @RequestParam MultipartFile file,
-                                        @RequestParam(required = false) String text ) throws IOException {
-        final SendMessageDto data = controllerMessageMapper.map(text, file, credentials, chatId);
-        return privateMessageService.sendMessageWithFile(data);
-    }
 
 
 }

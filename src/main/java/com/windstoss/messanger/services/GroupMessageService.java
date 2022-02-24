@@ -1,14 +1,10 @@
 package com.windstoss.messanger.services;
 
-import com.windstoss.messanger.api.dto.Message.EditTextMessageDto;
-import com.windstoss.messanger.api.dto.Message.GroupChatMessageRetrievalDto;
-import com.windstoss.messanger.api.dto.Message.SendMessageDto;
-import com.windstoss.messanger.api.dto.Message.SendTextMessageDto;
+import com.windstoss.messanger.api.dto.Message.MessageRetrievalDto;
 import com.windstoss.messanger.api.exception.exceptions.*;
-import com.windstoss.messanger.api.mapper.GroupChatTextMessageRetrievalDtoMapper;
-import com.windstoss.messanger.api.mapper.MessageMapper;
-import com.windstoss.messanger.api.mapper.TextMessageDtoMapper;
 import com.windstoss.messanger.domain.Chats.GroupChat;
+import com.windstoss.messanger.domain.Messages.GroupMessages.GroupChatDescribedFileMessage;
+import com.windstoss.messanger.domain.Messages.GroupMessages.GroupChatFileMessage;
 import com.windstoss.messanger.domain.Messages.GroupMessages.GroupChatTextMessage;
 import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.*;
@@ -21,22 +17,18 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
+@Transactional(rollbackFor = Exception.class)
 public class GroupMessageService {
 
     private final String uploadPath;
 
-    private final MessageMapper messageMapper;
-
-    private final UserRepository userRepository;
-
     private final GroupChatRepository groupChatRepository;
-
-    private final GroupChatMessageSignatureRepository groupChatMessageSignatureRepository;
 
     private final GroupChatTextMessageRepository groupChatTextMessageRepository;
 
@@ -45,211 +37,338 @@ public class GroupMessageService {
     private final GroupChatDescribedFileMessageRepository groupChatDescribedFileMessageRepository;
 
     public GroupMessageService(@Value("${upload.path}") String uploadPath,
-                               UserRepository userRepository,
                                GroupChatRepository groupChatRepository,
-                               GroupChatMessageSignatureRepository groupChatMessageSignatureRepository,
                                GroupChatTextMessageRepository groupChatTextMessageRepository,
                                GroupChatFileMessageRepository groupChatFileMessageRepository,
-                               GroupChatDescribedFileMessageRepository groupChatDescribedFileMessageRepository,
-                               MessageMapper messageMapper) {
+                               GroupChatDescribedFileMessageRepository groupChatDescribedFileMessageRepository) {
         this.uploadPath = Objects.requireNonNull(uploadPath);
-        this.userRepository = Objects.requireNonNull(userRepository);
         this.groupChatRepository = Objects.requireNonNull(groupChatRepository);
-        this.groupChatMessageSignatureRepository = Objects.requireNonNull(groupChatMessageSignatureRepository);
         this.groupChatTextMessageRepository = Objects.requireNonNull(groupChatTextMessageRepository);
         this.groupChatFileMessageRepository = Objects.requireNonNull(groupChatFileMessageRepository);
         this.groupChatDescribedFileMessageRepository = Objects.requireNonNull(groupChatDescribedFileMessageRepository);
-        this.messageMapper = Objects.requireNonNull(messageMapper);
     }
 
 
-    public GroupChatTextMessage sendGroupTextMessage(String credentials, UUID chatId, SendTextMessageDto sendMessageDto) {
-        final User sender = userRepository.findUserByUsername(credentials)
-                .orElseThrow(IllegalArgumentException::new);
+    public List<MessageRetrievalDto> getAllMessages(User user, UUID chatId) {
 
-        final GroupChat chat = groupChatRepository.findById(chatId)
-                .orElseThrow(IllegalArgumentException::new);
 
-        if (!chat.getUsers().contains(sender)){
-            throw new IllegalArgumentException();
+        groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
+        if(!groupChatRepository.isPresentInChat(chatId, user.getId())){
+            throw new UserAbsenceException();
         }
 
-        return groupChatTextMessageRepository.save(TextMessageDtoMapper.map(sender, chat, sendMessageDto));
-    }
 
-    public List<GroupChatMessageRetrievalDto> getAllMessages(User user, UUID chatId) {
-
-
-        if(!groupChatRepository.findById(chatId).orElseThrow(IllegalArgumentException::new)
-                .getUsers().contains(userRepository.findById(user.getId())
-                        .orElseThrow(IllegalArgumentException::new))){
-            throw new IllegalArgumentException();
-        }
-
-        List<GroupChatMessageRetrievalDto> messages = groupChatTextMessageRepository.getAllMessagesInChat(chatId)
-                .stream().filter(Objects::nonNull).map((message)-> GroupChatMessageRetrievalDto.builder()
+        List<MessageRetrievalDto> messages = groupChatTextMessageRepository.getAllMessagesInChat(chatId)
+                .stream().filter(Objects::nonNull).map((message) -> MessageRetrievalDto.builder()
                         .messageId(message.getId())
                         .nickname(message.getAuthor().getNickname())
                         .text(message.getContent())
                         .file("")
                         .build()).collect(Collectors.toList());
 
-        List<GroupChatMessageRetrievalDto> fileMessages = groupChatFileMessageRepository.findAllByChatId(chatId)
-                .stream().filter(Objects::nonNull).map((message)-> GroupChatMessageRetrievalDto.builder()
-                .messageId(message.getId())
-                .nickname(message.getAuthor().getNickname())
-                .text("")
-                .file(message.getFilePath())
-                .build()).collect(Collectors.toList());
+        List<MessageRetrievalDto> fileMessages = groupChatFileMessageRepository.findAllByChatId(chatId)
+                .stream().filter(Objects::nonNull).map((message) -> MessageRetrievalDto.builder()
+                        .messageId(message.getId())
+                        .nickname(message.getAuthor().getNickname())
+                        .text("")
+                        .file(message.getFilePath())
+                        .build()).collect(Collectors.toList());
 
-        List<GroupChatMessageRetrievalDto> dFileMessages = groupChatDescribedFileMessageRepository.findAllByChatId(chatId)
-                .stream().filter(Objects::nonNull).map((message)-> GroupChatMessageRetrievalDto.builder()
+        List<MessageRetrievalDto> dFileMessages = groupChatDescribedFileMessageRepository.findAllByChatId(chatId)
+                .stream().filter(Objects::nonNull).map((message) -> MessageRetrievalDto.builder()
                         .messageId(message.getId())
                         .nickname(message.getAuthor().getNickname())
                         .text(message.getDescription())
                         .file(message.getFilePath())
                         .build()).collect(Collectors.toList());
 
-        for(GroupChatMessageRetrievalDto a : dFileMessages) {
-                Iterator<GroupChatMessageRetrievalDto> iterator = fileMessages.iterator();
-                while (iterator.hasNext()) {
-                    GroupChatMessageRetrievalDto element = iterator.next();
-                    if (element.getMessageId() == a.getMessageId()) {
-                        fileMessages.remove(element);
-                    }
-                }
-            }
+        for (MessageRetrievalDto a : dFileMessages) {
+            fileMessages.removeIf(it -> it.getMessageId() == a.getMessageId());
+        }
 
 
         return ListUtils.union(messages, ListUtils.union(dFileMessages, fileMessages));
     }
 
-    public GroupChatMessageRetrievalDto editGroupTextMessage(String credentials,
-                                                             UUID chatId,
-                                                             UUID messageId,
-                                                             EditTextMessageDto data) {
+    public MessageRetrievalDto sendTextMessage(User sender, UUID chatId, String message) {
 
-        final User user = userRepository.findUserByUsername(credentials).orElseThrow(UserNotFoundException::new);
+        if(StringUtils.isEmpty(message)){
+            throw new MessageIsEmptyException();
+        }
 
-        if(!groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new).getUsers().contains(user)){
+        final GroupChat chat = groupChatRepository.findById(chatId)
+                .orElseThrow(ChatNotFoundException::new);
+
+        if (!chat.getUsers().contains(sender)) {
             throw new UserAbsenceException();
-        };
-
-        final GroupChatTextMessage message = groupChatTextMessageRepository.findById(messageId)
-                .orElseThrow(MessageNotFoundException::new);
-
-        if (StringUtils.isEmpty(data.getText())) {
-            throw new IllegalArgumentException();
         }
 
-        if (user != message.getAuthor() || !groupChatRepository.isAdminInGroupChat(chatId, user.getId())) {
-            throw new GroupChatPrivilegesException();
-        }
+        GroupChatTextMessage savedMessage = groupChatTextMessageRepository.save(GroupChatTextMessage.builder()
+                .content(message)
+                .author(sender)
+                .chat(chat)
+                .build());
 
-        message.setContent(data.getText());
-        return GroupChatTextMessageRetrievalDtoMapper.map(groupChatTextMessageRepository.save(message));
+        return MessageRetrievalDto.builder()
+                .text(savedMessage.getContent())
+                .messageId(savedMessage.getId())
+                .nickname(savedMessage.getAuthor().getNickname())
+                .file(null)
+                .build();
     }
 
-    public void deleteGroupChatTextMessage(String credentials, UUID chatId, UUID messageId) {
+    public MessageRetrievalDto sendFileMessage(User sender,
+                                               UUID chatId,
+                                               MultipartFile file) throws IOException {
 
-        final User user = userRepository.findUserByUsername(credentials).orElseThrow(UserNotFoundException::new);
+        final GroupChat chat = groupChatRepository.findById(chatId)
+                .orElseThrow(ChatNotFoundException::new);
 
-        if (!groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new).getUsers().contains(user)){
-            throw new UserAbsenceException();
-        };
+        File uploadDir = new File(uploadPath);
+
+        if (!uploadDir.exists()) {
+            uploadDir.mkdir();
+        }
+
+        String fileId = UUID.randomUUID().toString();
+        String fileName = fileId + "." + file.getOriginalFilename();
+        String filePath = uploadPath + "\\" + fileName;
+
+        file.transferTo(new File(filePath));
+        GroupChatFileMessage message = groupChatFileMessageRepository.save(GroupChatFileMessage.builder()
+                .filePath(filePath)
+                .chat(chat)
+                .author(sender)
+                .build());
+
+        return MessageRetrievalDto.builder()
+                .file(message.getFilePath())
+                .nickname(message.getAuthor().getNickname())
+                .messageId(message.getId())
+                .text(null)
+                .build();
+    }
+
+    public MessageRetrievalDto sendDescribedFileMessage(User sender,
+                                                        UUID chatId,
+                                                        MultipartFile file,
+                                                        String text) throws IOException {
+
+        final GroupChat chat = groupChatRepository.findById(chatId)
+                .orElseThrow(ChatNotFoundException::new);
+
+        File uploadDir = new File(uploadPath);
+
+        if (!uploadDir.exists()) {
+            uploadDir.mkdir();
+        }
+
+        String fileId = UUID.randomUUID().toString();
+        String fileName = fileId + "." + file.getOriginalFilename();
+        String filePath = uploadPath + "\\" + fileName;
+
+        file.transferTo(new File(filePath));
+
+        GroupChatDescribedFileMessage message = groupChatDescribedFileMessageRepository
+                .save(GroupChatDescribedFileMessage.builder()
+                        .description(text)
+                        .author(sender)
+                        .filePath(filePath)
+                        .chat(chat)
+                        .build());
+
+
+        return MessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .text(message.getDescription())
+                .file(message.getFilePath())
+                .nickname(message.getAuthor().getNickname())
+                .build();
+    }
+
+    public MessageRetrievalDto editTextMessage(User editor,
+                                               UUID chatId,
+                                               UUID messageId,
+                                               String newText) {
+
+        groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
+
+        if (StringUtils.isEmpty(newText)) {
+            throw new MessageIsEmptyException();
+        }
+
         final GroupChatTextMessage message = groupChatTextMessageRepository.findById(messageId)
                 .orElseThrow(MessageNotFoundException::new);
 
-        if (user != message.getAuthor() || !groupChatRepository.isAdminInGroupChat(chatId, user.getId())) {
+        if (message.getContent().equals(newText)) {
+            throw new MessageIsEqualException();
+        }
+
+        if (!editor.equals(message.getAuthor())) {
+            throw new MessageAuthorityException();
+        }
+
+        message.setContent(newText);
+        groupChatTextMessageRepository.save(message);
+
+        return MessageRetrievalDto.builder()
+                .nickname(editor.getNickname())
+                .text(newText)
+                .file(null)
+                .messageId(message.getId())
+                .build();
+    }
+
+    public MessageRetrievalDto editFileMessage(User editor,
+                                               UUID chatId,
+                                               UUID messageId,
+                                               MultipartFile file) throws IOException {
+
+        groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
+
+        GroupChatFileMessage message = groupChatFileMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
+
+        if( file == null || file.isEmpty() ){
+            throw new MessageIsEmptyException();
+        }
+
+        if (!editor.equals(message.getAuthor())) {
+            throw new MessageAuthorityException();
+        }
+
+        new File(message.getFilePath()).delete();
+
+        File uploadDir = new File(uploadPath);
+
+        if (!uploadDir.exists()) {
+            uploadDir.mkdir();
+        }
+
+        String fileId = UUID.randomUUID().toString();
+        String fileName = fileId + "." + file.getOriginalFilename();
+        String filePath = uploadPath + "\\" + fileName;
+
+        if (message.getFilePath().equals(filePath)) {
+            throw new MessageIsEqualException();
+        }
+
+        file.transferTo(new File(filePath));
+        message.setFilePath(filePath);
+        groupChatFileMessageRepository.save(message);
+
+        return MessageRetrievalDto.builder()
+                .messageId(messageId)
+                .file(filePath)
+                .nickname(editor.getNickname())
+                .text(null)
+                .build();
+
+
+    }
+
+    public MessageRetrievalDto editDescribedFileMessage(User editor,
+                                                        UUID chatId,
+                                                        UUID messageId,
+                                                        MultipartFile file,
+                                                        String text) throws IOException {
+
+        groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
+
+        GroupChatDescribedFileMessage message = groupChatDescribedFileMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
+
+        if( StringUtils.isEmpty(text) && (file == null || file.isEmpty())){
+            throw new MessageIsEmptyException();
+        }
+
+        if (!editor.equals(message.getAuthor())) {
+            throw new MessageAuthorityException();
+        }
+
+        if (file != null && !file.isEmpty()) {
+
+            File uploadDir = new File(uploadPath);
+
+            if (!uploadDir.exists()) {
+                uploadDir.mkdir();
+            }
+
+            String fileId = UUID.randomUUID().toString();
+            String fileName = fileId + "." + file.getOriginalFilename();
+            String filePath = uploadPath + "\\" + fileName;
+
+            if (message.getFilePath().equals(filePath) && message.getDescription().equals(text)) {
+                throw new MessageIsEqualException();
+            }
+
+            Files.delete(Paths.get(message.getFilePath()));
+            file.transferTo(new File(filePath));
+            message.setFilePath(filePath);
+        }
+
+        message.setDescription(StringUtils.defaultIfEmpty(text, message.getDescription()));
+        groupChatDescribedFileMessageRepository.save(message);
+
+        return MessageRetrievalDto.builder()
+                .messageId(messageId)
+                .file(message.getFilePath())
+                .nickname(editor.getNickname())
+                .text(text)
+                .build();
+    }
+
+    public boolean deleteTextMessage(User requester, UUID chatId, UUID messageId) {
+
+        groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
+
+        final GroupChatTextMessage message = groupChatTextMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
+
+        if (requester.equals(message.getAuthor()) || !groupChatRepository.isAdminInGroupChat(chatId, requester.getId())) {
             throw new GroupChatPrivilegesException();
         }
 
         groupChatTextMessageRepository.delete(message);
+        return true;
     }
 
-    public List<String> sendMessageWithFile(SendMessageDto data) throws IOException {
-        //TODO: to get rid of if-statement
-        final User sender = exists(data.getAuthor());
-        final GroupChat chat = requestedChatExists(sender.getId(), data.getChatId());
-        List<String> list = new ArrayList<String>();
+    public boolean deleteFileMessage(User requester, UUID chatId, UUID messageId) throws IOException {
 
-        if(StringUtils.isEmpty(data.getText())){
-            return sendFileMessage(data, list, sender, chat);
-        } else {
-            return sendDescribedFileMessage(data, list, sender, chat);
+        groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
+
+        final GroupChatFileMessage message = groupChatFileMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
+
+        if (requester.equals(message.getAuthor()) || !groupChatRepository.isAdminInGroupChat(chatId, requester.getId())) {
+            throw new GroupChatPrivilegesException();
         }
 
+        Files.delete(Paths.get(message.getFilePath()));
+
+        groupChatFileMessageRepository.delete(message);
+
+        Files.delete(Paths.get(message.getFilePath()));
+
+        return true;
     }
 
-    private List<String> sendFileMessage(SendMessageDto data,
-                                         List<String> list, User sender,
-                                         GroupChat chat) throws IOException{
+    public boolean deleteDescribedFileMessage(User requester, UUID chatId, UUID messageId) throws IOException {
 
-        final MultipartFile file = data.getFile();
+        groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
 
-        if (file != null) {
-            File uploadDir = new File(uploadPath);
+        final GroupChatDescribedFileMessage message = groupChatDescribedFileMessageRepository.findById(messageId)
+                .orElseThrow(MessageNotFoundException::new);
 
-            if (!uploadDir.exists()) {
-                uploadDir.mkdir();
-            }
-
-            String fileId = UUID.randomUUID().toString();
-            String fileName = fileId + "." + file.getOriginalFilename();
-            String filePath = uploadPath + "\\" + fileName;
-
-            file.transferTo(new File(filePath));
-
-
-            list.add(groupChatFileMessageRepository
-                    .save(TextMessageDtoMapper.mapGF(sender, chat, filePath))
-                    .getFilePath());
-
+        if (requester.equals(message.getAuthor()) || !groupChatRepository.isAdminInGroupChat(chatId, requester.getId())) {
+            throw new GroupChatPrivilegesException();
         }
 
-        return list;
+        Files.delete(Paths.get(message.getFilePath()));
+
+        groupChatDescribedFileMessageRepository.delete(message);
+
+        return true;
     }
 
-    private List<String> sendDescribedFileMessage(SendMessageDto data,
-                                                  List<String> list,
-                                                  User sender,
-                                                  GroupChat chat) throws IOException{
-        final MultipartFile file = data.getFile();
-
-        if (file != null) {
-            File uploadDir = new File(uploadPath);
-
-            if (!uploadDir.exists()) {
-                uploadDir.mkdir();
-            }
-
-            String fileId = UUID.randomUUID().toString();
-            String fileName = fileId + "." + file.getOriginalFilename();
-            String filePath = uploadPath + "\\" + fileName;
-
-            file.transferTo(new File(filePath));
-
-            list.add(data.getText());
-            list.add(groupChatDescribedFileMessageRepository
-                    .save(TextMessageDtoMapper.mapGDF(sender, chat, filePath, data.getText()))
-                    .getFilePath());
-        }
-
-        return list;
-    }
-
-    private User exists(String username){
-        return userRepository.findUserByUsername(username)
-                .orElseThrow(UserNotFoundException::new);
-    }
-
-    private GroupChat requestedChatExists(UUID userId, UUID chatId){
-
-        GroupChat chat = groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
-
-        if(groupChatRepository.isPresentInChat(chatId, userId)) {
-            return groupChatRepository.findById(chatId).orElseThrow(ChatNotFoundException::new);
-        }
-        else throw new UserAbsenceException();
-    }
 }

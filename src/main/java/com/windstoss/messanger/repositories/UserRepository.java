@@ -16,6 +16,8 @@ public interface UserRepository extends CrudRepository<User, UUID> {
 
     Optional<User> findUserByUsername(String username);
 
+    Optional<User> findUserById(UUID userId);
+
     @Query(value = "FROM User as u " +
             "WHERE LOWER(u.nickname) LIKE LOWER(CONCAT(:username, '%'))")
     List<User> userSearch(String username);
