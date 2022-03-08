@@ -1,4 +1,4 @@
-import { MessageTypeDefiner } from "./MessagePanel";
+import { messageTypeDefiner } from "./MessagePanel";
 
 export async function DeleteMessage(message){
     
@@ -7,7 +7,7 @@ export async function DeleteMessage(message){
 
     const response = await fetch(`http://localhost:8080/chats/${type}/${chatId}/messages/${message.id}`, {
         method: "DELETE",
-        headers:{ authorization: "Bearer " + jwt,  type:  MessageTypeDefiner(message.text, message.file),},
+        headers:{ authorization: "Bearer " + jwt,  type:  messageTypeDefiner(message.text, message.file),},
     })
 
     return await response.json()

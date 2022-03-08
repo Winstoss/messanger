@@ -35,25 +35,29 @@ public class PrivateChatService {
 
         final List<PrivateChat> chats = privateChatRepository.findChatsByUserId(user.getId())
                 .orElseGet(()-> (Collections.EMPTY_LIST));
-
         return chats.stream().map((it)->(ChatRetrievalDto.builder()
                 .chatName((
                         it.getSecondUser().getId().equals(user.getId()))
                         ?(it.getFirstUser().getNickname())
                         :(it.getSecondUser().getNickname()))
-                .chatId(it.getId())
+                .chatId((
+                        it.getSecondUser().getId().equals(user.getId()))
+                        ?(it.getFirstUser().getId())
+                        :(it.getSecondUser().getId()))
                 .type("private")
                 .chatImage((
                         it.getSecondUser().getId().equals(user.getId()))
                         ?(it.getFirstUser().getAvatarPath())
                         :(it.getSecondUser().getAvatarPath()))
-                .build())).peek((dto)-> {
-        }).collect(Collectors.toList());
+                .build()))
+                .collect(Collectors.toList());
+
     }
 
     public PrivateChat getPrivateChat(User requester, UUID secondUserID) {
 
-        return privateChatRepository.findByUsersId(requester.getId(), secondUserID).orElseGet(PrivateChat::new);
+        return privateChatRepository.findByUsersId(requester.getId(), secondUserID)
+                .orElseThrow(ChatNotFoundException::new);
     }
 
 

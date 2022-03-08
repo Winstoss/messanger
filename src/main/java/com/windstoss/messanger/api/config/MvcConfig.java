@@ -18,7 +18,7 @@ public class MvcConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry
                 .addResourceHandler("/files/**")
-                .addResourceLocations("file:\\F:\\uploads\\");
+                .addResourceLocations("file:/home/windstoss/Documents/msgrDownloads");
     }
 
     @Override

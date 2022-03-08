@@ -1,6 +1,6 @@
 import { Routes, Route, useParams } from "react-router";
 import { useEffect, useState } from "react";
-import { MessagePanel } from "./Components/MessagePanel";
+import { MessagePanel, messageTypeDefiner } from "./Components/MessagePanel";
 import * as ContextMenu from "@radix-ui/react-context-menu";
 
 export function RightPanel() {
@@ -18,18 +18,12 @@ function MessageContext({ children, handleEdit, handleDelete }) {
   return (
     <ContextMenu.Root>
       <ContextMenu.Trigger>{children}</ContextMenu.Trigger>
-      <ContextMenu.Item onSelect={handleEdit}>Edit</ContextMenu.Item>
-      <ContextMenu.Item onSelect={handleDelete}>Delete</ContextMenu.Item>
+      <ContextMenu.Content>
+        <ContextMenu.Item onSelect={handleEdit}>Edit</ContextMenu.Item>
+        <ContextMenu.Item onSelect={handleDelete}>Delete</ContextMenu.Item>
+      </ContextMenu.Content>
     </ContextMenu.Root>
   );
-}
-
-async function getMessages() {
-  const promise = await fetch(`http://localhost:8080/chats/${type}/${chatId}/messages/`, {
-    method: "GET",
-    headers: { authorization: "Bearer " + token, Accept: "application/json" },
-  });
-  const res = await promise.json();
 }
 
 function ChatWindow() {
@@ -37,9 +31,26 @@ function ChatWindow() {
   const [messages, setMessages] = useState([]);
   const { type, chatId } = useParams();
   const [isEditor, editing] = useState(false);
-  const[selectedMessage, setSelectedMessage] = useState(null)
+  const [selectedMessage, setSelectedMessage] = useState(null);
   const token = localStorage.getItem("token");
+  const [chat, chatExists] = useState(false);
 
+  async function getMessages() {
+    const promise = await fetch(`http://localhost:8080/chats/${type}/${chatId}/messages/`, {
+      method: "GET",
+      headers: { authorization: "Bearer " + token, Accept: "application/json" },
+    });
+    return await promise.json();
+  }
+
+
+  async function getChat() {
+    const promise = await fetch(`http://localhost:8080/chats/${type}/${chatId}`, {
+      method: "GET",
+      headers: { authorization: "Bearer " + token, Accept: "application/json" },
+    });
+    return await promise.json();
+  }
 
   async function handleDelete(messageId, text, file) {
     const jwt = localStorage.getItem("token");
@@ -48,7 +59,7 @@ function ChatWindow() {
       `http://localhost:8080/chats/${type}/${chatId}/messages/${messageId}`,
       {
         method: "DELETE",
-        headers: { authorization: "Bearer " + jwt, type: MessageTypeDefiner(text, file) },
+        headers: { authorization: "Bearer " + jwt, type: messageTypeDefiner(text, file) },
       }
     );
 
@@ -60,14 +71,25 @@ function ChatWindow() {
 
   function handleEdit(messageId, text, file) {
     editing(true);
-    setSelectedMessage({messageId, text, file})
+    setSelectedMessage({ messageId, text, file });
   }
+
+  useEffect(() => {
+    setLoading(true);
+    getChat().then((res) => {
+      if (!res.message) {
+        chatExists(true);
+      }
+      setLoading(false);
+    });
+  }, [type, chatId, chat]);
 
   useEffect(() => {
     setLoading(true);
     getMessages().then((res) => {
       setMessages(res);
       setLoading(false);
+      console.log(messages);
     });
   }, [type, chatId]);
 
@@ -76,18 +98,25 @@ function ChatWindow() {
       Chat of type {type} and id: {chatId};
       <div>
         {messages.map(({ messageId, nickname, file, text }) => (
-          <MessageContext
-            handleDelete={() => handleDelete(messageId, text, file)}
-            handleEdit={() => handleEdit(messageId, text, file)}
-          >
-            <p key={`${messageId}`}>
+          <p>
+            <MessageContext
+              key={`${messageId}`}
+              handleDelete={() => handleDelete(messageId, text, file)}
+              handleEdit={() => handleEdit(messageId, text, file)}
+            >
               {nickname} : {file} {text}
-            </p>
-          </MessageContext>
+            </MessageContext>
+          </p>
         ))}
       </div>
       <div>
-        <MessagePanel isEditor={isEditor} message={selectedMessage} editing={editing} />
+        <MessagePanel
+          chat={chat}
+          chatExists={() => chatExists(true)}
+          isEditor={isEditor}
+          message={selectedMessage}
+          editing={editing}
+        />
       </div>
     </div>
   );

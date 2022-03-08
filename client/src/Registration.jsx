@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export function Registration(){
+export function Registration({setRegistration}){
 
     const [username, setUsername] = useState("")
     const [password, setPassword] = useState("")
@@ -12,14 +12,14 @@ export function Registration(){
         event.preventDefault()
 
         const response = await fetch(`http://localhost:8080/user/registration`, {
-            method: "GET",
-            headers: {},
+            method: "POST",
+            headers: {"content-type": "application/json" },
             body: JSON.stringify({
-                username: event.target.username,
-                nickname: event.target.nickname,
-                password: event.target.password,
-                phoneNumber: event.target.phoneNumber,
-                bio: event.target.bio
+                username: username,
+                nickname: nickname,
+                password: password,
+                phoneNumber: phoneNumber,
+                bio: bio
             })
         })
 
@@ -32,12 +32,13 @@ export function Registration(){
     }
 
 
-    return <div onSubmit={handleSubmit}>
+    return <form onSubmit={handleSubmit}>
         <input type="text" placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
         <input type="text" placeholder="Nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} />
-        <input type="password" placeholder="Nickname" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
         <input type="tel" placeholder="Phone number" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
         <input type="text" placeholder="Bio" value={bio} onChange={(e) => setBio(e.target.value)} />
         <input type="submit" value="Registrate" />
-    </div>
+        <button onClick={setRegistration}> To login</button>
+    </form>
 }
