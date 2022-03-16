@@ -20,15 +20,12 @@ import java.util.UUID;
 @RestController
 public class PrivateMessageController {
 
-    private final ControllerMessageMapper controllerMessageMapper;
-
     private final PrivateMessageService privateMessageService;
 
-    public PrivateMessageController(PrivateMessageService privateMessageService,
-                                    ControllerMessageMapper controllerMessageMapper) {
+    public PrivateMessageController(PrivateMessageService privateMessageService) {
         this.privateMessageService = privateMessageService;
-        this.controllerMessageMapper = controllerMessageMapper;
     }
+
 
     @GetMapping("/{userId}/messages/")
     public List<MessageRetrievalDto> getAllMessages(@PathVariable("userId") UUID userId,
@@ -39,18 +36,24 @@ public class PrivateMessageController {
 
     @PostMapping(value = "/{userId}/messages/", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public MessageRetrievalDto sendPrivateMessage(@PathVariable("userId") UUID userId,
-                                               @RequestHeader("type") MessageTypes type,
-                                               @RequestParam(required = false) String text,
-                                               @RequestParam(required = false) MultipartFile file,
-                                               UsernamePasswordAuthenticationToken principal) {
+                                                  @RequestHeader("type") MessageTypes type,
+                                                  @RequestParam(required = false) String text,
+                                                  @RequestParam(required = false) MultipartFile file,
+                                                  UsernamePasswordAuthenticationToken principal) {
 
-        try{
-            switch(type){
-                case TEXT: return privateMessageService.sendPrivateTextMessage((User) principal.getPrincipal(), userId, text);
-                case FILE: return privateMessageService.sendPrivateFileMessage((User) principal.getPrincipal(), userId, file);
-                case DESCRIBED: return privateMessageService.sendPrivateDescribedFileMessage((User) principal.getPrincipal(), userId, file, text);
+        try {
+            switch (type) {
+                case TEXT:
+                    privateMessageService.sendPrivateTextMessage((User) principal.getPrincipal(), userId, text);
+                    break;
+                case FILE:
+                    privateMessageService.sendPrivateFileMessage((User) principal.getPrincipal(), userId, file);
+                    break;
+                case DESCRIBED:
+                    privateMessageService.sendPrivateDescribedFileMessage((User) principal.getPrincipal(), userId, file, text);
+                    break;
             }
-        } catch (IOException e){
+        } catch (IOException e) {
             throw new InternalStorageException();
         }
 
@@ -61,18 +64,24 @@ public class PrivateMessageController {
 
     @PatchMapping("{userId}/messages/{messageId}")
     public MessageRetrievalDto editPrivateMessage(@PathVariable("userId") UUID userId,
-                                                      @PathVariable("messageId") UUID messageId,
-                                                      @RequestHeader("type") MessageTypes type,
-                                                      @RequestParam(required = false) String text,
-                                                      @RequestParam(required = false) MultipartFile file,
-                                                      UsernamePasswordAuthenticationToken principal) {
-        try{
-            switch(type){
-                case TEXT: return privateMessageService.editPrivateTextMessage((User) principal.getPrincipal(), userId, messageId, text);
-                case FILE: return privateMessageService.editPrivateFileMessage((User) principal.getPrincipal(), userId, messageId, file);
-                case DESCRIBED: return privateMessageService.editPrivateDescribedFileMessage((User) principal.getPrincipal(), userId, messageId, file, text);
+                                                  @PathVariable("messageId") UUID messageId,
+                                                  @RequestHeader("type") MessageTypes type,
+                                                  @RequestParam(required = false) String text,
+                                                  @RequestParam(required = false) MultipartFile file,
+                                                  UsernamePasswordAuthenticationToken principal) {
+        try {
+            switch (type) {
+                case TEXT:
+                    privateMessageService.editPrivateTextMessage((User) principal.getPrincipal(), userId, messageId, text);
+                    break;
+                case FILE:
+                    privateMessageService.editPrivateFileMessage((User) principal.getPrincipal(), userId, messageId, file);
+                    break;
+                case DESCRIBED:
+                    privateMessageService.editPrivateDescribedFileMessage((User) principal.getPrincipal(), userId, messageId, file, text);
+                    break;
             }
-        } catch (IOException e){
+        } catch (IOException e) {
             throw new InternalStorageException();
         }
 
@@ -82,24 +91,27 @@ public class PrivateMessageController {
 
     @DeleteMapping("/{userId}/messages/{messageId}")
     public boolean deletePrivateMessage(@PathVariable("userId") UUID userId,
-                                         @PathVariable("messageId") UUID messageId,
-                                         @RequestHeader("type") MessageTypes type,
-                                         UsernamePasswordAuthenticationToken principal) {
+                                        @PathVariable("messageId") UUID messageId,
+                                        @RequestHeader("type") MessageTypes type,
+                                        UsernamePasswordAuthenticationToken principal) {
 
-        try{
-            switch(type){
-                case TEXT: return privateMessageService.deleteTextMessage((User) principal.getPrincipal(), userId, messageId);
-                case FILE: return privateMessageService.deleteFileMessage((User) principal.getPrincipal(), userId, messageId);
-                case DESCRIBED: return privateMessageService.deleteDescribedFileMessage((User) principal.getPrincipal(), userId, messageId);
+        try {
+            switch (type) {
+                case TEXT:
+                    privateMessageService.deleteTextMessage((User) principal.getPrincipal(), userId, messageId);
+                    break;
+                case FILE:
+                    privateMessageService.deleteFileMessage((User) principal.getPrincipal(), userId, messageId);
+                    break;
+                case DESCRIBED:
+                    privateMessageService.deleteDescribedFileMessage((User) principal.getPrincipal(), userId, messageId);
+                    break;
             }
-        } catch (IOException e){
+        } catch (IOException e) {
             throw new InternalStorageException();
         }
         return false;
     }
-
-
-
 
 
 }

@@ -26,6 +26,37 @@ function MessageContext({ children, handleEdit, handleDelete }) {
   );
 }
 
+function transformSseStream() {
+  return new TransformStream({
+    start() {
+      this.buffer = "";
+    },
+    transform(chunk, controller) {
+      this.buffer += chunk;
+      while (true) {
+        const endIndex = this.buffer.indexOf("\n\n");
+        if (endIndex == -1) break;
+        const eventStr = this.buffer.substring(0, endIndex);
+        controller.enqueue(JSON.parse(eventStr.substring(5)));
+        this.buffer = this.buffer.substring(endIndex + 2);
+      }
+    },
+  });
+}
+
+async function getStream({ signal, type, chatId, token }) {
+  const response = await fetch(`http://localhost:8080/chats/${type}/${chatId}/sse-stream`, {
+    signal: signal,
+    method: "POST",
+    headers: { authorization: "Bearer " + token },
+  });
+
+  return response.body
+    .pipeThrough(new TextDecoderStream("utf-8"))
+    .pipeThrough(transformSseStream())
+    .getReader();
+}
+
 function ChatWindow() {
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState([]);
@@ -34,15 +65,16 @@ function ChatWindow() {
   const [selectedMessage, setSelectedMessage] = useState(null);
   const token = localStorage.getItem("token");
   const [chat, chatExists] = useState(false);
+  const [eventSource, setSource] = useState(null);
+  const controller = new AbortController();
 
   async function getMessages() {
     const promise = await fetch(`http://localhost:8080/chats/${type}/${chatId}/messages/`, {
       method: "GET",
-      headers: { authorization: "Bearer " + token, Accept: "application/json" },
+      headers: { authorization: "Bearer " + token },
     });
     return await promise.json();
   }
-
 
   async function getChat() {
     const promise = await fetch(`http://localhost:8080/chats/${type}/${chatId}`, {
@@ -74,14 +106,30 @@ function ChatWindow() {
     setSelectedMessage({ messageId, text, file });
   }
 
+  async function handleStream({controller, type, chatId, token}){
+
+    const reader = await getStream({ signal: controller.signal, type, chatId, token });
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      console.log(value);
+      value.deleted
+        ? setMessages(messages => messages.filter((it) => it.messageId != value.messageId))
+        : setMessages(messages => [...messages, value]);
+    }
+  }
+
   useEffect(() => {
     setLoading(true);
-    getChat().then((res) => {
-      if (!res.message) {
+    getChat().then((err) => {
+      if (!err.message) {
         chatExists(true);
+        handleStream({controller, type, chatId, token});
       }
       setLoading(false);
     });
+    return () => controller.abort();
   }, [type, chatId, chat]);
 
   useEffect(() => {
@@ -89,7 +137,7 @@ function ChatWindow() {
     getMessages().then((res) => {
       setMessages(res);
       setLoading(false);
-      console.log(messages);
+      //console.log(messages);
     });
   }, [type, chatId]);
 
@@ -116,6 +164,7 @@ function ChatWindow() {
           isEditor={isEditor}
           message={selectedMessage}
           editing={editing}
+          getStream={getStream}
         />
       </div>
     </div>

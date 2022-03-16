@@ -11,6 +11,7 @@ import com.windstoss.messanger.domain.User;
 import com.windstoss.messanger.repositories.*;
 import com.windstoss.messanger.utils.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,15 +39,18 @@ public class PrivateMessageService {
 
     private final PrivateChatTextMessageRepository privateChatTextMessageRepository;
 
+    private final ApplicationEventPublisher publisher;
 
     public PrivateMessageService(
             @Value("${upload.path}") String uploadPath,
+            ApplicationEventPublisher publisher,
             PrivateChatDescribedFileMessageRepository privateChatDescribedFileMessageRepository,
             PrivateChatTextMessageRepository privateChatTextMessageRepository,
             PrivateChatFileMessageRepository privateChatFileMessageRepository,
             PrivateChatRepository privateChatRepository) {
 
         this.uploadPath = Objects.requireNonNull(uploadPath);
+        this.publisher = publisher;
         this.privateChatTextMessageRepository = Objects.requireNonNull(privateChatTextMessageRepository);
         this.privateChatFileMessageRepository = Objects.requireNonNull(privateChatFileMessageRepository);
         this.privateChatDescribedFileMessageRepository = Objects.requireNonNull(privateChatDescribedFileMessageRepository);
@@ -64,6 +68,7 @@ public class PrivateMessageService {
                             .nickname(it.getAuthor().getNickname())
                             .text(it.getDescription())
                             .file(it.getFilePath())
+                            .chatId(chatId)
                             .build())
                 .collect(Collectors.toList());
 
@@ -74,6 +79,7 @@ public class PrivateMessageService {
                         .nickname(it.getAuthor().getNickname())
                         .text(it.getContent())
                         .file(null)
+                        .chatId(chatId)
                         .build())
                 .collect(Collectors.toList());
 
@@ -84,6 +90,7 @@ public class PrivateMessageService {
                         .nickname(it.getAuthor().getNickname())
                         .text(null)
                         .file(it.getFilePath())
+                        .chatId(chatId)
                         .build())
                 .collect(Collectors.toList());
 
@@ -111,12 +118,21 @@ public class PrivateMessageService {
                         .author(sender)
                         .chat(chat)
                         .build());
-        
+
+        publisher.publishEvent(MessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .text(text)
+                .file(null)
+                .nickname(sender.getNickname())
+                .chatId(chat.getId())
+                .build());
+
         return MessageRetrievalDto.builder()
                 .messageId(message.getId())
                 .text(text)
                 .file(null)
                 .nickname(sender.getNickname())
+                .chatId(chat.getId())
                 .build();
     }
 
@@ -141,11 +157,20 @@ public class PrivateMessageService {
                 .author(sender)
                 .build());
 
+        publisher.publishEvent(MessageRetrievalDto.builder()
+                .file(message.getFilePath())
+                .nickname(sender.getNickname())
+                .messageId(message.getId())
+                .text(null)
+                .chatId(chat.getId())
+                .build());
+
         return MessageRetrievalDto.builder()
                 .file(message.getFilePath())
                 .nickname(sender.getNickname())
                 .messageId(message.getId())
                 .text(null)
+                .chatId(chat.getId())
                 .build();
     }
 
@@ -176,11 +201,20 @@ public class PrivateMessageService {
                         .build());
 
 
+        publisher.publishEvent(MessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .text(message.getDescription())
+                .file(message.getFilePath())
+                .nickname(sender.getNickname())
+                .chatId(chat.getId())
+                .build());
+
         return MessageRetrievalDto.builder()
                 .messageId(message.getId())
                 .text(message.getDescription())
                 .file(message.getFilePath())
                 .nickname(sender.getNickname())
+                .chatId(chat.getId())
                 .build();
     }
 
@@ -188,7 +222,7 @@ public class PrivateMessageService {
                                                       UUID userId,
                                                       UUID messageId,
                                                       String text) {
-        requestedChatExists(editor.getId(), userId);
+        UUID chatId =requestedChatExists(editor.getId(), userId).getId();
 
         PrivateChatTextMessage message = privateChatTextMessageRepository.findById(messageId)
                 .orElseThrow(MessageNotFoundException::new);
@@ -199,12 +233,21 @@ public class PrivateMessageService {
         
         message.setContent(text);
         privateChatTextMessageRepository.save(message);
+
+        publisher.publishEvent(MessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .file(null)
+                .text(text)
+                .nickname(editor.getNickname())
+                .chatId(chatId)
+                .build());
         
         return MessageRetrievalDto.builder()
                 .messageId(message.getId())
                 .file(null)
                 .text(text)
                 .nickname(editor.getNickname())
+                .chatId(chatId)
                 .build();
     }
 
@@ -213,7 +256,7 @@ public class PrivateMessageService {
                                                       UUID messageId,
                                                       MultipartFile file) throws IOException {
 
-        requestedChatExists(editor.getId(), userId);
+        UUID chatId = requestedChatExists(editor.getId(), userId).getId();
         PrivateChatFileMessage message = privateChatFileMessageRepository.findById(messageId)
                 .orElseThrow(MessageNotFoundException::new);
 
@@ -244,11 +287,20 @@ public class PrivateMessageService {
         message.setFilePath(filePath);
         privateChatFileMessageRepository.save(message);
 
+        publisher.publishEvent(MessageRetrievalDto.builder()
+                .messageId(message.getId())
+                .file(message.getFilePath())
+                .text(null)
+                .nickname(editor.getNickname())
+                .chatId(chatId)
+                .build());
+
         return MessageRetrievalDto.builder()
                 .file(message.getFilePath())
                 .nickname(editor.getNickname())
                 .messageId(message.getId())
                 .text(null)
+                .chatId(chatId)
                 .build();
     }
 
@@ -257,7 +309,7 @@ public class PrivateMessageService {
                                                                UUID messageId,
                                                                MultipartFile file,
                                                                String text) throws IOException {
-        requestedChatExists(editor.getId(), userId);
+        UUID chatId = requestedChatExists(editor.getId(), userId).getId();
         PrivateChatDescribedFileMessage message = privateChatDescribedFileMessageRepository.findById(messageId)
                 .orElseThrow(MessageNotFoundException::new);
 
@@ -290,19 +342,27 @@ public class PrivateMessageService {
 
         message.setDescription(StringUtils.defaultIfEmpty(text, message.getDescription()));
         privateChatFileMessageRepository.save(message);
+        publisher.publishEvent(MessageRetrievalDto.builder()
+                .file(message.getFilePath())
+                .nickname(editor.getNickname())
+                .messageId(message.getId())
+                .text(text)
+                .chatId(chatId)
+                .build());
 
         return MessageRetrievalDto.builder()
                 .file(message.getFilePath())
                 .nickname(editor.getNickname())
                 .messageId(message.getId())
                 .text(text)
+                .chatId(chatId)
                 .build();
     }
 
 
-    public boolean deleteTextMessage(User requester, UUID userId, UUID messageId) {
+    public DeleteMessageRetrievalDto deleteTextMessage(User requester, UUID userId, UUID messageId) {
 
-        requestedChatExists(requester.getId(), userId);
+        UUID chatId = requestedChatExists(requester.getId(), userId).getId();
         final PrivateChatTextMessage message = privateChatTextMessageRepository.findById(messageId)
                 .orElseThrow(MessageNotFoundException::new);
 
@@ -311,14 +371,23 @@ public class PrivateMessageService {
         }
 
         privateChatTextMessageRepository.delete(message);
+        publisher.publishEvent(DeleteMessageRetrievalDto.builder()
+                .isDeleted(true)
+                .chatId(chatId)
+                .messageId(messageId)
+                .build());
 
-        return true;
+        return DeleteMessageRetrievalDto.builder()
+                .isDeleted(true)
+                .chatId(chatId)
+                .messageId(messageId)
+                .build();
     }
 
 
-    public boolean deleteFileMessage(User requester, UUID userID, UUID messageId) throws IOException {
+    public DeleteMessageRetrievalDto deleteFileMessage(User requester, UUID userID, UUID messageId) throws IOException {
 
-        requestedChatExists(requester.getId(), userID);
+        UUID chatId = requestedChatExists(requester.getId(), userID).getId();
         final PrivateChatFileMessage message = privateChatFileMessageRepository.findById(messageId)
                 .orElseThrow(MessageNotFoundException::new);
 
@@ -329,13 +398,22 @@ public class PrivateMessageService {
         Files.delete(Paths.get(message.getFilePath()));
 
         privateChatFileMessageRepository.delete(message);
+        publisher.publishEvent(DeleteMessageRetrievalDto.builder()
+                .isDeleted(true)
+                .chatId(chatId)
+                .messageId(messageId)
+                .build());
 
-        return true;
+        return DeleteMessageRetrievalDto.builder()
+                .isDeleted(true)
+                .chatId(chatId)
+                .messageId(messageId)
+                .build();
     }
 
-    public boolean deleteDescribedFileMessage(User requester, UUID userId, UUID messageId) throws IOException {
+    public DeleteMessageRetrievalDto deleteDescribedFileMessage(User requester, UUID userId, UUID messageId) throws IOException {
 
-        requestedChatExists(requester.getId(), userId);
+        UUID chatId = requestedChatExists(requester.getId(), userId).getId();
         final PrivateChatDescribedFileMessage message = privateChatDescribedFileMessageRepository.findById(messageId)
                 .orElseThrow(MessageNotFoundException::new);
 
@@ -346,8 +424,17 @@ public class PrivateMessageService {
         Files.delete(Paths.get(message.getFilePath()));
 
         privateChatFileMessageRepository.delete(message);
+        publisher.publishEvent(DeleteMessageRetrievalDto.builder()
+                .isDeleted(true)
+                .chatId(chatId)
+                .messageId(messageId)
+                .build());
 
-        return true;
+        return DeleteMessageRetrievalDto.builder()
+                .isDeleted(true)
+                .chatId(chatId)
+                .messageId(messageId)
+                .build();
 
     }
 

@@ -8,7 +8,9 @@ export function messageTypeDefiner(text, file){
   if(text && file) return "described"
 }
 
-export function MessagePanel({ chat, chatExists, isEditor, messageId, text: messageText, file: messageFile, editing}) {
+
+
+export function MessagePanel({ chat, chatExists, isEditor, messageId, text: messageText, file: messageFile, editing, getStream}) {
   const { type, chatId } = useParams();
   const jwt = localStorage.getItem("token");
   const [text, setText] = useState("");
@@ -77,6 +79,7 @@ export function MessagePanel({ chat, chatExists, isEditor, messageId, text: mess
         />
         <input type="file" name="file" onChange={(e) => {setFile(true)}} />
         <input type="submit" value="Send" />
+        <button onClick={getStream}>test sse</button>
         {isEditor && <button value="cancel editing" onClick={()=> editing(false)}/>}
       </form>
     </div>

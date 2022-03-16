@@ -67,7 +67,7 @@ public class ChatController {
         privateChatService.deletePrivateChat((User) principal.getPrincipal(), secondUserID);
     }
 
-    @DeleteMapping("/deleted/{schatId}")
+    @DeleteMapping("/deleted/{chatId}")
     public void deleteDeletedChat(@PathVariable("chatId") UUID chatId,
                                             UsernamePasswordAuthenticationToken principal){
 
