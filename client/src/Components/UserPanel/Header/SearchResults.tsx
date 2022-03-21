@@ -1,10 +1,14 @@
 import { NavLink } from "react-router-dom";
+import { UserSearchEntry } from "../../../api";
 
-export function SearchResults(data) {
+type Props = {
+  chats: UserSearchEntry[];
+};
 
+export function SearchResults({ chats }: Props) {
   return (
     <ul>
-      {data.data.map(({ avatarPath, nickname, userId }) => (
+      {chats.map(({ avatarPath, nickname, userId }) => (
         <li key={`/private/${userId}`}>
           <NavLink to={`/private/${userId}`}>{nickname}</NavLink>
         </li>

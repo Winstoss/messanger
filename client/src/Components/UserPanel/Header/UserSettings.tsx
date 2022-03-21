@@ -1,10 +1,18 @@
-import { useEffect, useState } from "react";
+import React, { useState } from "react";
+import { updateUserData } from "../../../api";
+import { useLocalStorage } from "../../useLocalStorage";
 
-export function UserSettings({ onClose }) {
+type Props = {
+  onClose?: () => void;
+};
+
+export function UserSettings({ onClose }: Props) {
   const [jwt, setJwt] = useState(localStorage.getItem("token"));
-  const [exception, setException] = useState(null);
   const [userInfo, setUserInfo] = useState(JSON.parse(localStorage.getItem("user data")));
+  useLocalStorage("token", jwt);
+  useLocalStorage("user data", JSON.stringify(userInfo));
 
+  const [exception, setException] = useState(null);
   const [nickname, setNickname] = useState(userInfo?.nickname);
   const [password, setPassword] = useState("");
   const [bio, setBio] = useState(userInfo.bio);
@@ -12,15 +20,10 @@ export function UserSettings({ onClose }) {
   const [image, setImage] = useState(userInfo.image);
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(event) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
 
-    const response = await fetch(`http://localhost:8080/user/me`, {
-      method: "PATCH",
-      headers: { authorization: "Bearer " + jwt },
-      body: new FormData(event.target),
-    });
-    const res = await response.json();
+    const res = await updateUserData({ bio, image, nickname, password, phoneNumber }, jwt);
 
     if (!res.nickname) {
       setJwt(null);
@@ -31,22 +34,6 @@ export function UserSettings({ onClose }) {
     }
     setLoading(false);
   }
-
-  useEffect(() => {
-    if (jwt) {
-      localStorage.setItem("token", jwt);
-    } else {
-      localStorage.removeItem("token");
-    }
-  }, [jwt]);
-
-  useEffect(() => {
-    if (userInfo) {
-      localStorage.setItem("user data", JSON.stringify(userInfo));
-    } else {
-      localStorage.removeItem("user data");
-    }
-  }, [userInfo]);
 
   return (
     <div>
@@ -74,7 +61,7 @@ export function UserSettings({ onClose }) {
           value={phoneNumber}
           onChange={(e) => setPhoneNumber(e.target.value)}
         />
-        <input type="file" name="image" onChange={(e) => setImage(e.target.files.item[0])} />
+        <input type="file" name="image" onChange={(e) => setImage(e.target.files?.item(0))} />
         <input type="submit" value="Change" />
         <button onClick={onClose} />
       </form>

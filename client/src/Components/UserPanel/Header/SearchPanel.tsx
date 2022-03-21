@@ -1,4 +1,10 @@
-export function SearchPanel({ query, onQueryChange, onFocusChange }) {
+type Props = {
+  query: string;
+  onQueryChange: (query: string) => void;
+  onFocusChange: (inFocus: boolean) => void;
+};
+
+export function SearchPanel({ query, onQueryChange, onFocusChange }: Props) {
   return (
     <div>
       <input
