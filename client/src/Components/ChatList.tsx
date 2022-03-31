@@ -1,15 +1,9 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-
-async function fetchChats(token) {
-  const response = await fetch(`http://localhost:8080/chats`, {
-    headers: { authorization: "Bearer " + token },
-  });
-  return response.json();
-}
+import { Chat, fetchChats } from "../api";
 
 export function ChatList() {
-  const [chats, setChats] = useState(null);
+  const [chats, setChats] = useState<Chat[] | null>(null);
 
   useEffect(() => {
     fetchChats(localStorage.getItem("token")).then((chats) => {
@@ -18,7 +12,7 @@ export function ChatList() {
   }, []);
 
   if (!chats) {
-    return "Loading...";
+    return <>Loading...</>;
   }
 
   return (
